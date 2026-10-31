@@ -1,0 +1,99 @@
+\chapter{The yaw-free formation (master inequality, version 2)}
+\label{chap:yawfree}
+
+The camera is fixed straight down the thrust axis ($\eta=-\pi/2$), so its boresight is
+$-b_3$ whatever the yaw. The body frame is \emph{parallel transported}: each frame
+rotates by the smallest rotation that takes the old thrust direction to the new one,
+so the drone never yaws.
+
+\begin{lemma}[Vertical manoeuvre limit]
+\label{lem:avert}
+\lean{VisionTracking.TargetParams, VisionTracking.thrustStar_up_ge_v,
+  VisionTracking.thrustStar_up_le_v, VisionTracking.targetAcc_up_abs_le}
+\leanok
+\uses{lem:thrust-demand}
+With the target's vertical acceleration at most $a_{\mathrm{vert}}$, the copying
+thrust's vertical part lies in $g\pm(a_{\mathrm{vert}}+c_Dv_{\max}^2\sin\gamma)$.
+\end{lemma}
+
+\begin{theorem}[Sharp planner errors]
+\label{thm:sharp-planner}
+\lean{VisionTracking.abel_tail, VisionTracking.sum_smul_eq_tail, VisionTracking.tailSum,
+  VisionTracking.FIR.T1, VisionTracking.FIR.T2, VisionTracking.FIR.T3, VisionTracking.FIR.G1,
+  VisionTracking.FIR.G2, VisionTracking.FIR.G3, VisionTracking.FIR.planAcc_err_sharp,
+  VisionTracking.FIR.planVel_err_sharp, VisionTracking.FIR.planPos_err_sharp}
+\leanok
+\uses{thm:fir-bounds}
+Summation by parts gives acceleration, velocity and position errors at most $G_1\delta j$,
+$G_2\delta^2j$ and $G_3\delta^3j$, where $G_m=\sum|T_m|$ for the iterated tails
+$T_1=\mathrm{tail}\,h$, $T_2=\mathrm{tail}\,T_1$, $T_3=\mathrm{tail}\,T_2$.
+\end{theorem}
+
+\begin{lemma}[Sharp normalisation]
+\label{lem:sharp-norm}
+\lean{VisionTracking.norm_nrm_sub_le_sharp, VisionTracking.norm_cross_nrm_second_le}
+\leanok
+\uses{lem:regularity}
+$\norm{\hat a-\hat b}\le\norm{a-b}/m$, and
+$\norm{\hat b\times(\hat c-2\hat b+\hat a)}\le\norm{c-2b+a}/m+(\norm{c-b}^2+\norm{b-a}^2)/m^2$.
+The cross product removes the centripetal part of the second difference.
+\end{lemma}
+
+\begin{lemma}[Minimal rotations]
+\label{lem:minrot}
+\lean{VisionTracking.minRot, VisionTracking.rotate_minRot, VisionTracking.inner_minRot_left,
+  VisionTracking.norm_rotate_sub_le, VisionTracking.cross_cross_unit, VisionTracking.norm_psiVec_eq}
+\leanok
+\uses{thm:rotation}
+For unit $a,b$ with $\inner ab\ge0$, $\mathrm{psiVec}(a\times b)$ rotates $a$ onto $b$ and has
+no component along $a$.
+\end{lemma}
+
+\begin{theorem}[Lifting rotation plans]
+\label{thm:rotplan}
+\lean{VisionTracking.RotPlan, VisionTracking.QuadTraj.ofRotPlan, VisionTracking.RotPlan.norm_rate,
+  VisionTracking.RotPlan.norm_rate_sub_le, VisionTracking.RotPlan.rate_yaw}
+\leanok
+\uses{thm:lifting}
+Suppose a plan's frames evolve by chosen rotation vectors $\omega_k$. Then
+$\norm{\Omega_k}=\norm{\omega_k}/\delta$ and
+$\norm{\Omega_{k+1}-\Omega_k}\le(\norm{\omega_{k+1}-\omega_k}+3\norm{\omega_k}\norm{\omega_{k+1}})/\delta$.
+If the wrench, tilt and rates fit, the plan is a valid trajectory.
+\end{theorem}
+
+\begin{definition}[Master budget, version 2]
+\label{def:budget2}
+\lean{VisionTracking.MasterIneq2, VisionTracking.Budget2.Zlo, VisionTracking.Budget2.D3,
+  VisionTracking.Budget2.X, VisionTracking.Budget2.θm, VisionTracking.Budget2.dω,
+  VisionTracking.Budget2.τrp, VisionTracking.Budget2.τyaw, VisionTracking.Budget2.Θhi}
+\leanok
+\uses{lem:avert, thm:sharp-planner, lem:sharp-norm, lem:minrot}
+Version 1's budget with the sharp constants. The thrust direction turns by at most
+$D_3=dT/Z_{\mathrm{lo}}$ per step. The rotation vectors satisfy
+$\norm{\omega}\le\theta_m=D_3/\sqrt{1-D_3^2}$ and
+$\norm{\Delta\omega}\le3X/\sqrt{1-D_3^2}$. The yaw torque is only gyroscopic. Visibility
+needs $\Theta_{\mathrm{hi}}+\mu\le\alpha$.
+\end{definition}
+
+\begin{theorem}[Master inequality, version 2, sufficient side]
+\label{thm:master2}
+\lean{VisionTracking.master_sufficient2, VisionTracking.Down.traj,
+  VisionTracking.Down.traj_keeps, VisionTracking.Down.traj_causal, VisionTracking.Down.rp,
+  VisionTracking.Down.rp_mix, VisionTracking.Down.rp_torque_yaw_le, VisionTracking.Down.b1_spec,
+  VisionTracking.Down.ω_step_le, VisionTracking.Down.sigma_step_le, VisionTracking.orthUnit_spec}
+\leanok
+\uses{def:budget2, thm:rotplan, thm:master-sufficient}
+If \texttt{MasterIneq2} holds for a planner with four frames of lag, a position-only
+strategy keeps every target with the given start in view. It flies the yaw-free
+overhead formation as a valid rigid-body quadrotor.
+\end{theorem}
+
+\begin{remark}[Where it is satisfiable]
+\texttt{scripts/budget\_v2.py} mirrors \texttt{Budget2} definition by definition. The
+setup is a 1.5\,kg quadrotor (thrust-to-weight 6, $c_D=0.008$), a 60$^\circ$ half-FOV
+camera, a 150\,m standoff, and a lag-4 least-squares planner with a 0.5--2\,s window.
+\texttt{MasterIneq2} then holds against targets up to 25--30\,m/s with jerk at most
+2\,m/s$^3$ and vertical acceleration at most 1.5\,m/s$^2$, at 60--240\,Hz. It fails at
+jerk 5\,m/s$^3$ (torque authority) and above about 30\,m/s (tilt exceeds the field of
+view). Fast targets need the hinged camera at high tilt.
+\end{remark}
