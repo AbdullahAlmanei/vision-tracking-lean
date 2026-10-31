@@ -60,11 +60,12 @@ theorem horiz_up : horiz up = 0 := by
 variable (T : TargetTraj P δ) (Q : QuadParams) (hδ : 0 < δ)
 include hδ
 
+omit hδ in
 theorem speed_pos (k : ℕ) : 0 < ‖T.v k‖ := P.vMin_pos.trans_le (T.speed_ge k)
 
 theorem norm_tan_part_le (k : ℕ) :
     ‖(⟪T.v (k + 1) - T.v k, T.v k⟫ / ‖T.v k‖ ^ 2) • T.v k‖ ≤ δ * P.aTan := by
-  have hn := speed_pos T hδ k
+  have hn := speed_pos T k
   rw [norm_smul, Real.norm_eq_abs, abs_div, abs_of_pos (by positivity : 0 < ‖T.v k‖ ^ 2)]
   have := T.tangential k
   rw [div_mul_eq_mul_div, div_le_iff₀ (by positivity)]
@@ -176,7 +177,7 @@ theorem thrustStar_horiz_ge (k : ℕ) :
     Hstar P Q ≤ ‖horiz (thrustStar Q (T.v k) (δ⁻¹ • (T.v (k + 1) - T.v k)))‖ := by
   set V := T.v k with hV
   set Δ := T.v (k + 1) - T.v k with hΔ
-  have hn := speed_pos T hδ k
+  have hn := speed_pos T k
   rw [← hV] at hn
   have hc := Q.drag_pos
   have hγ0 := P.climbMax_nonneg
