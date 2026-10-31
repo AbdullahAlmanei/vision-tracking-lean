@@ -276,4 +276,52 @@ theorem thrustStar_horiz_ge (k : ℕ) :
   have r2 : Q.drag * ‖V‖ * nh = Q.drag * (‖V‖ * nh) := by ring
   linarith
 
+/-! ## Vertical bounds from the vertical-acceleration limit -/
+
+theorem targetAcc_up_abs_le (k : ℕ) : |⟪δ⁻¹ • (T.v (k + 1) - T.v k), up⟫| ≤ P.aVert := by
+  rw [real_inner_smul_left, abs_mul, abs_inv, abs_of_pos hδ, inv_mul_le_iff₀ hδ]
+  exact T.vert_le k
+
+theorem thrustStar_up_ge_v (k : ℕ) :
+    Q.g - P.aVert - Q.drag * P.vMax ^ 2 * Real.sin P.climbMax ≤
+      ⟪thrustStar Q (T.v k) (δ⁻¹ • (T.v (k + 1) - T.v k)), up⟫ := by
+  have h1 := (abs_le.1 (targetAcc_up_abs_le T hδ k)).1
+  have hv := T.speed_le k
+  have hc := Q.drag_pos
+  have hcl := T.climb_le k
+  have hsin : 0 ≤ Real.sin P.climbMax :=
+    Real.sin_nonneg_of_nonneg_of_le_pi P.climbMax_nonneg (by linarith [P.climbMax_lt, Real.pi_pos])
+  have huu : ⟪up, up⟫ = 1 := by rw [real_inner_self_eq_norm_sq, norm_up']; norm_num
+  have h2 : -(Q.drag * P.vMax ^ 2 * Real.sin P.climbMax) ≤ Q.drag * ‖T.v k‖ * ⟪T.v k, up⟫ := by
+    rw [abs_le] at hcl
+    have hn := norm_nonneg (T.v k)
+    have : ‖T.v k‖ * ‖T.v k‖ * Real.sin P.climbMax ≤ P.vMax ^ 2 * Real.sin P.climbMax := by
+      apply mul_le_mul_of_nonneg_right _ hsin; nlinarith
+    nlinarith [mul_le_mul_of_nonneg_left hcl.1 (mul_nonneg hc.le hn)]
+  unfold thrustStar
+  rw [inner_add_left, inner_add_left, real_inner_smul_left up up Q.g,
+    real_inner_smul_left (T.v k) up (Q.drag * ‖T.v k‖), huu]
+  linarith
+
+theorem thrustStar_up_le_v (k : ℕ) :
+    ⟪thrustStar Q (T.v k) (δ⁻¹ • (T.v (k + 1) - T.v k)), up⟫ ≤
+      Q.g + P.aVert + Q.drag * P.vMax ^ 2 * Real.sin P.climbMax := by
+  have h1 := (abs_le.1 (targetAcc_up_abs_le T hδ k)).2
+  have hv := T.speed_le k
+  have hc := Q.drag_pos
+  have hcl := T.climb_le k
+  have hsin : 0 ≤ Real.sin P.climbMax :=
+    Real.sin_nonneg_of_nonneg_of_le_pi P.climbMax_nonneg (by linarith [P.climbMax_lt, Real.pi_pos])
+  have huu : ⟪up, up⟫ = 1 := by rw [real_inner_self_eq_norm_sq, norm_up']; norm_num
+  have h2 : Q.drag * ‖T.v k‖ * ⟪T.v k, up⟫ ≤ Q.drag * P.vMax ^ 2 * Real.sin P.climbMax := by
+    rw [abs_le] at hcl
+    have hn := norm_nonneg (T.v k)
+    have : ‖T.v k‖ * ‖T.v k‖ * Real.sin P.climbMax ≤ P.vMax ^ 2 * Real.sin P.climbMax := by
+      apply mul_le_mul_of_nonneg_right _ hsin; nlinarith
+    nlinarith [mul_le_mul_of_nonneg_left hcl.2 (mul_nonneg hc.le hn)]
+  unfold thrustStar
+  rw [inner_add_left, inner_add_left, real_inner_smul_left up up Q.g,
+    real_inner_smul_left (T.v k) up (Q.drag * ‖T.v k‖), huu]
+  linarith
+
 end VisionTracking

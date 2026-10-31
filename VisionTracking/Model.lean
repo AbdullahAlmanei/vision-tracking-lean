@@ -63,6 +63,9 @@ structure TargetParams where
   jerk : ℝ
   /-- Maximum climb or dive angle. -/
   climbMax : ℝ
+  /-- Maximum vertical acceleration (pull-up / push-over), typically much smaller than
+  the turning acceleration. -/
+  aVert : ℝ
   /-- Detection size: over all viewing directions, the minimum of the longer side
   of the target's projected bounding box. -/
   size : ℝ
@@ -73,6 +76,7 @@ structure TargetParams where
   jerk_nonneg : 0 ≤ jerk
   climbMax_nonneg : 0 ≤ climbMax
   climbMax_lt : climbMax < Real.pi / 2
+  aVert_nonneg : 0 ≤ aVert
   size_pos : 0 < size
 
 /-- An admissible target trajectory. The velocity change over one step is split
@@ -90,6 +94,7 @@ structure TargetTraj (P : TargetParams) (δ : ℝ) where
       ≤ δ * ‖v k‖ ^ 2 / P.turnRadius
   jerk_le : ∀ k, ‖(v (k + 2) - v (k + 1)) - (v (k + 1) - v k)‖ ≤ δ ^ 2 * P.jerk
   climb_le : ∀ k, |⟪v k, up⟫| ≤ ‖v k‖ * Real.sin P.climbMax
+  vert_le : ∀ k, |⟪v (k + 1) - v k, up⟫| ≤ δ * P.aVert
 
 /-! ## Camera -/
 
