@@ -1,0 +1,50 @@
+\chapter{The formation planner}
+\label{chap:planner}
+
+\begin{definition}[Extended target history]
+\label{def:ext}
+\lean{VisionTracking.TargetTraj.ext, VisionTracking.TargetTraj.velExt,
+  VisionTracking.TargetTraj.accExt, VisionTracking.TargetTraj.ext_succ,
+  VisionTracking.TargetTraj.velExt_succ, VisionTracking.TargetTraj.accExt_succ_le,
+  VisionTracking.TargetTraj.ext_natCast, VisionTracking.TargetTraj.velExt_natCast}
+\leanok
+\uses{def:target-traj}
+Positions, velocities and accelerations on all of $\Z$: the trajectory for $n\ge0$, and
+a constant-acceleration history at the known initial acceleration $a_0$ for $n<0$.
+The Euler relations hold everywhere, and accelerations change by at most
+$\delta j$ per step, across the start as well.
+\end{definition}
+
+\begin{definition}[FIR planner]
+\label{def:fir}
+\lean{VisionTracking.FIR, VisionTracking.FIR.planPos, VisionTracking.FIR.planVel,
+  VisionTracking.FIR.planAcc, VisionTracking.FIR.H0, VisionTracking.FIR.H1,
+  VisionTracking.FIR.H2, VisionTracking.FIR.H3, VisionTracking.FIR.TV, VisionTracking.FIR.extrap3}
+\leanok
+\uses{def:ext}
+$x_k=\sum_ih_ip_{k-i}+\mathrm{off}$ with $h$ supported on $[2,M]$ and exact on quadratics:
+$\sum h_i=1$, $\sum ih_i=0$, $\sum i^2h_i=0$. Example: $6p_{k-2}-8p_{k-3}+3p_{k-4}$.
+\end{definition}
+
+\begin{theorem}[Planner error and smoothness]
+\label{thm:fir-bounds}
+\lean{VisionTracking.FIR.planPos_err, VisionTracking.FIR.planVel_err,
+  VisionTracking.FIR.planAcc_err, VisionTracking.FIR.planAcc_step,
+  VisionTracking.FIR.planAcc_second, VisionTracking.FIR.planPos_succ,
+  VisionTracking.FIR.planVel_succ, VisionTracking.FIR.planPos_congr,
+  VisionTracking.TargetTraj.acc_diff_le, VisionTracking.TargetTraj.vel_rem_le,
+  VisionTracking.TargetTraj.pos_rem_le, VisionTracking.abel_sum}
+\leanok
+\uses{def:fir}
+Against any target with jerk at most $j$:
+\begin{itemize}
+  \item position error $\le H_3\delta^3j$;
+  \item velocity error $\le H_2\delta^2j$;
+  \item acceleration error $\le H_1\delta j$;
+  \item acceleration change per step $\le H_0\delta j$;
+  \item acceleration second difference $\le\mathrm{TV}(h)\,\delta j$.
+\end{itemize}
+Here $H_m=\sum|h_i|\,c_m(i)$ with $c_0=1$, $c_1=i$, $c_2=i(i+1)/2$ and
+$c_3=i(i+1)(i+2)/6$. The plan is causal: the position at step $k+2$ uses target
+positions up to step $k$ only.
+\end{theorem}
