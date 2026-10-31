@@ -190,4 +190,81 @@ theorem norm_nrm_second_le {a b c : E3} {m : ℝ} (hm : 0 < m) (ha : m ≤ ‖a�
   have hnn : 0 ≤ (‖c - b‖ ^ 2 + ‖b - a‖ ^ 2) / (2 * m ^ 2) := by positivity
   linarith
 
+/-! ## The downhill body axis -/
+
+/-- The unnormalised rotor-plane part of straight down: `-e₃ + ⟪b, e₃⟫ b`. -/
+noncomputable def downhillRaw (b : E3) : E3 := -up + ⟪b, up⟫ • b
+
+/-- The unit body axis in the rotor plane pointing straight down. -/
+noncomputable def downhill (b : E3) : E3 := nrm (downhillRaw b)
+
+theorem norm_up' : ‖up‖ = 1 := by simp [up]
+
+theorem inner_downhillRaw_self {b : E3} (hb : ‖b‖ = 1) : ⟪downhillRaw b, b⟫ = 0 := by
+  have hbb : ⟪b, b⟫ = 1 := by rw [real_inner_self_eq_norm_sq, hb]; norm_num
+  rw [downhillRaw, inner_add_left, inner_neg_left, real_inner_smul_left, hbb, real_inner_comm]
+  ring
+
+theorem norm_downhillRaw_sq {b : E3} (hb : ‖b‖ = 1) : ‖downhillRaw b‖ ^ 2 = 1 - ⟪b, up⟫ ^ 2 := by
+  have hbb : ⟪b, b⟫ = 1 := by rw [real_inner_self_eq_norm_sq, hb]; norm_num
+  have huu : ⟪up, up⟫ = 1 := by rw [real_inner_self_eq_norm_sq, norm_up']; norm_num
+  rw [← real_inner_self_eq_norm_sq, downhillRaw]
+  simp only [inner_add_left, inner_add_right, inner_neg_left, inner_neg_right,
+    real_inner_smul_left, real_inner_smul_right, hbb, huu]
+  rw [real_inner_comm up b]; ring
+
+theorem downhill_unit {b : E3} (hraw : downhillRaw b ≠ 0) : ‖downhill b‖ = 1 := by
+  unfold downhill nrm; exact norm_smul_inv_norm hraw
+
+theorem downhill_orth {b : E3} (hb : ‖b‖ = 1) : ⟪downhill b, b⟫ = 0 := by
+  rw [downhill, nrm, real_inner_smul_left, inner_downhillRaw_self hb, mul_zero]
+
+/-- `downhill b` is aligned with the rotor-plane part of `-e₃`. -/
+theorem downhill_aligned {b : E3} (hb : ‖b‖ = 1) (hraw : downhillRaw b ≠ 0) :
+    ⟪downhill b, -up⟫ = √(1 - ⟪b, -up⟫ ^ 2) := by
+  have hpos : 0 < ‖downhillRaw b‖ := norm_pos_iff.2 hraw
+  have hsq := norm_downhillRaw_sq hb
+  have hin : ⟪downhillRaw b, -up⟫ = ‖downhillRaw b‖ ^ 2 := by
+    rw [hsq, downhillRaw, inner_add_left, inner_neg_left, inner_neg_right, inner_neg_right,
+      real_inner_self_eq_norm_sq, norm_up', real_inner_smul_left]
+    ring
+  rw [downhill, nrm, real_inner_smul_left, hin, inner_neg_right, neg_sq, ← hsq,
+    Real.sqrt_sq hpos.le]
+  field_simp
+
+theorem downhillRaw_sub {b b' : E3} :
+    downhillRaw b' - downhillRaw b = ⟪b' - b, up⟫ • b' + ⟪b, up⟫ • (b' - b) := by
+  rw [downhillRaw, downhillRaw, inner_sub_left]; module
+
+theorem norm_downhillRaw_sub_le {b b' : E3} (hb : ‖b‖ = 1) (hb' : ‖b'‖ = 1) :
+    ‖downhillRaw b' - downhillRaw b‖ ≤ 2 * ‖b' - b‖ := by
+  rw [downhillRaw_sub]
+  refine (norm_add_le _ _).trans ?_
+  rw [norm_smul, norm_smul, Real.norm_eq_abs, Real.norm_eq_abs, hb']
+  have h1 := abs_real_inner_le_norm (b' - b) up
+  have h2 := abs_real_inner_le_norm b up
+  rw [norm_up'] at h1 h2; rw [hb] at h2
+  nlinarith [norm_nonneg (b' - b), abs_nonneg ⟪b, up⟫]
+
+theorem downhillRaw_second {a b c : E3} :
+    downhillRaw c - 2 • downhillRaw b + downhillRaw a =
+      ⟪c - 2 • b + a, up⟫ • c + ⟪b, up⟫ • (c - 2 • b + a) + ⟪b - a, up⟫ • ((c - b) + (b - a)) := by
+  simp only [downhillRaw, inner_add_left, inner_sub_left, two_smul]
+  module
+
+theorem norm_downhillRaw_second_le {a b c : E3} (hb : ‖b‖ = 1) (hc : ‖c‖ = 1) :
+    ‖downhillRaw c - 2 • downhillRaw b + downhillRaw a‖ ≤
+      2 * ‖c - 2 • b + a‖ + ‖b - a‖ * (‖c - b‖ + ‖b - a‖) := by
+  rw [downhillRaw_second]
+  refine (norm_add_le _ _).trans (add_le_add ((norm_add_le _ _).trans ?_) ?_)
+  · rw [norm_smul, norm_smul, Real.norm_eq_abs, Real.norm_eq_abs, hc]
+    have h1 := abs_real_inner_le_norm (c - 2 • b + a) up
+    have h2 := abs_real_inner_le_norm b up
+    rw [norm_up'] at h1 h2; rw [hb] at h2
+    nlinarith [norm_nonneg (c - 2 • b + a), abs_nonneg ⟪b, up⟫]
+  · rw [norm_smul, Real.norm_eq_abs]
+    have h1 := abs_real_inner_le_norm (b - a) up
+    rw [norm_up', mul_one] at h1
+    exact mul_le_mul h1 (norm_add_le _ _) (norm_nonneg _) (norm_nonneg _)
+
 end VisionTracking

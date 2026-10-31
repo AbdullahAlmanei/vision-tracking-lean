@@ -131,6 +131,40 @@ the mixer. Suppose also that tilt, body rates, speed and hinge are within limits
 Then the plan is a valid rigid-body trajectory.
 \end{theorem}
 
+\begin{lemma}[Regularity of normalisation and of the downhill axis]
+\label{lem:regularity}
+\lean{VisionTracking.nrm, VisionTracking.norm_nrm_sub_le, VisionTracking.norm_nrm_second_le,
+  VisionTracking.norm_add_le_quad, VisionTracking.second_scalar, VisionTracking.inv_sub_mul_le,
+  VisionTracking.downhill, VisionTracking.downhillRaw, VisionTracking.downhill_unit,
+  VisionTracking.downhill_orth, VisionTracking.downhill_aligned,
+  VisionTracking.norm_downhillRaw_sub_le, VisionTracking.norm_downhillRaw_second_le}
+\leanok
+On vectors of length at least $m$:
+$\norm{\hat a-\hat b}\le2\norm{a-b}/m$ and
+$\norm{\hat c-2\hat b+\hat a}\le2\norm{c-2b+a}/m+3(\norm{c-b}^2+\norm{b-a}^2)/m^2$.
+The downhill axis $\widehat{-\up+\inner{b}{\up}b}$ is a unit vector orthogonal to $b$,
+aligned with the rotor-plane part of $-\up$. Its unnormalised form has first
+differences at most $2\norm{\Delta b}$ and second differences at most
+$2\norm{\Delta^2b}+\norm{\Delta b}(\norm{\Delta b}+\norm{\Delta b'})$.
+\end{lemma}
+
+\begin{theorem}[Body rates from frame differences]
+\label{thm:frame-rate}
+\lean{VisionTracking.KinPlan.norm_rate_le, VisionTracking.KinPlan.norm_rate_sub_le,
+  VisionTracking.frameTrace_ge_of_step, VisionTracking.psiVec, VisionTracking.core_rotate_psi,
+  VisionTracking.frameRotVec, VisionTracking.frameRotVec_spec, VisionTracking.norm_psiVec_le,
+  VisionTracking.norm_psiVec_sub_le, VisionTracking.norm_sigmaVec_sub_le,
+  VisionTracking.arcsin_sub_le, VisionTracking.KinPlan.rate_eq}
+\leanok
+\uses{lem:axis-angle, thm:lifting}
+For rotations of at most $\pi/2$, the axis-angle vector is
+$(\arcsin\norm\sigma/\norm\sigma)\sigma$, which is $3/\sqrt{1-\rho^2}$-Lipschitz on
+$\norm\sigma\le\rho$. If the frame vectors move by at most $D_1$ per step with second
+differences at most $D_2$, and $2D_1<1$, then
+$\norm{\Omega_k}\le2D_1/(\delta\sqrt{1-4D_1^2})$ and
+$\norm{\Omega_{k+1}-\Omega_k}\le18(D_2+D_1^2)/(\delta\sqrt{1-4D_1^2})$.
+\end{theorem}
+
 \section{Steady formation: exact characterization}
 
 \begin{theorem}[Steady formation iff window]
