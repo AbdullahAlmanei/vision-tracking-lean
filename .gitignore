@@ -13,3 +13,4 @@ blueprint/print/
 .DS_Store
 /.agent-shell/
 .claude/worktrees/
+scratch/

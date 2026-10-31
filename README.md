@@ -17,7 +17,8 @@ roadmap.
 |---|---|
 | Discrete-time model (`VisionTracking/Model.lean`) | defined |
 | Speed impossibility: `D.vMax < P.vMax` ⇒ not maintainable (`VisionTracking/SpeedBound.lean`) | proved, `sorry`-free |
-| Pointing reduction, formation hold, converse bounds, master inequality | stated in the blueprint roadmap |
+| Pointing reduction: camera can see `u` ⇔ rotor-plane elevation of `u` ∈ [η_lo − α, η_hi + α] (`VisionTracking/Pointing.lean`) | proved, `sorry`-free |
+| Formation hold, converse bounds, master inequality | stated in the blueprint roadmap |
 
 ## Building
 

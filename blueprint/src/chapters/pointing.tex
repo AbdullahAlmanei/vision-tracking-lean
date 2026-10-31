@@ -1,0 +1,91 @@
+\chapter{Pointing reduces to one scalar}
+\label{chap:pointing}
+
+With yaw free, whether the hinged camera can see a direction depends on a single
+number: the elevation of that direction above the rotor plane. Throughout this
+chapter $b_3$ is a unit thrust axis that is not horizontal
+($\inner{b_3}{\up}\neq0$) and $u$ is a unit line of sight.
+
+\begin{definition}[Rotor-plane elevation]
+\label{def:elevation}
+\lean{VisionTracking.elevation}
+\leanok
+$e(b_3,u)=\arcsin\inner{b_3}{u}\in[-\pi/2,\pi/2]$.
+\end{definition}
+
+\begin{lemma}[Orthonormal-pair bound]
+\label{lem:orthonormal-bound}
+\lean{VisionTracking.inner_sq_add_inner_sq_le, VisionTracking.inner_camera_le_cos,
+  VisionTracking.abs_sub_le_angle_of_orthonormal, VisionTracking.angle_eq_abs_sub_of_aligned}
+\leanok
+Let $b_1\perp b_3$ be unit vectors and $\eta\in[-\pi/2,\pi/2]$. Then
+$\ang(\cos\eta\,b_1+\sin\eta\,b_3,\ u)\ge|\eta-\arcsin\inner{b_3}{u}|$, with
+equality when $\inner{b_1}{u}=\sqrt{1-\inner{b_3}{u}^2}$.
+\end{lemma}
+
+\begin{proof}
+\leanok
+Bessel's inequality gives $\inner{b_1}{u}^2+\inner{b_3}{u}^2\le1$, so
+$\inner{b_1}{u}\le\cos e$. Since $\cos\eta\ge0$,
+$\inner{c}{u}\le\cos\eta\cos e+\sin\eta\sin e=\cos(\eta-e)$. Apply the decreasing
+function $\arccos$ and use $|\eta-e|\le\pi$.
+\end{proof}
+
+\begin{lemma}[Body forward axis]
+\label{lem:body-forward}
+\lean{VisionTracking.norm_bodyForward, VisionTracking.inner_bodyForward_self,
+  VisionTracking.heading_proj_ne_zero}
+\leanok
+\uses{def:cam-axis}
+$b_1=\mathrm{bodyForward}(b_3,\psi)$ is a unit vector orthogonal to $b_3$.
+\end{lemma}
+
+\begin{proof}
+\leanok
+The heading is horizontal and of unit length. Its projection onto $b_3^\perp$ could
+only vanish if the heading were a multiple of $b_3$, and taking the inner product
+with $\up$ rules that out.
+\end{proof}
+
+\begin{lemma}[Yaw covers the rotor plane]
+\label{lem:yaw-covers}
+\lean{VisionTracking.exists_yaw_bodyForward_eq}
+\leanok
+\uses{lem:body-forward}
+Every unit vector $w\perp b_3$ equals $\mathrm{bodyForward}(b_3,\psi)$ for some
+yaw $\psi$.
+\end{lemma}
+
+\begin{proof}
+\leanok
+Slide $w$ along $b_3$ to the horizontal vector
+$h=w-\frac{\inner{w}{\up}}{\inner{b_3}{\up}}b_3$, which is nonzero. Take $\psi$ to
+be the argument of $(h_0,h_1)$, so that the heading at $\psi$ is $h/\norm{h}$. Its
+projection onto $b_3^\perp$ is $w/\norm{h}$, which normalises to $w$.
+\end{proof}
+
+\begin{theorem}[Pointing reduction]
+\label{thm:pointing}
+\lean{VisionTracking.abs_sub_elevation_le_angle, VisionTracking.exists_yaw_angle_eq,
+  VisionTracking.exists_visible_iff}
+\leanok
+\uses{def:elevation, lem:orthonormal-bound, lem:yaw-covers}
+For every yaw $\psi$ and every $\eta\in[-\pi/2,\pi/2]$,
+$\ang(c(b_3,\psi,\eta),u)\ge|\eta-e(b_3,u)|$, and some yaw attains equality.
+Consequently, for a hinge range
+$-\pi/2\le\eta_{\mathrm{lo}}\le\eta_{\mathrm{hi}}\le\pi/2$ and $\alpha\ge0$,
+\[
+  \exists\,\psi,\ \eta\in[\eta_{\mathrm{lo}},\eta_{\mathrm{hi}}]:\
+  \ang(c(b_3,\psi,\eta),u)\le\alpha
+  \iff
+  \eta_{\mathrm{lo}}-\alpha\le e(b_3,u)\le\eta_{\mathrm{hi}}+\alpha .
+\]
+\end{theorem}
+
+\begin{proof}
+\leanok
+The lower bound is Lemma~\ref{lem:orthonormal-bound} applied with
+Lemma~\ref{lem:body-forward}. For attainment, align $b_1$ with the rotor-plane
+part of $u$ using Lemma~\ref{lem:yaw-covers}; when $u=\pm b_3$ every yaw is
+optimal. For the equivalence, take $\eta$ to be $e$ clamped to the hinge range.
+\end{proof}

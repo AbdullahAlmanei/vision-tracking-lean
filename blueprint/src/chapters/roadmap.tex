@@ -5,35 +5,6 @@ Nothing in this chapter is formalised yet; it fixes the statements to aim at.
 Throughout, $H=[\eta_{\mathrm{lo}},\eta_{\mathrm{hi}}]$ is the hinge interval and
 $\operatorname{dist}(e,H)$ is the distance from a number to that interval.
 
-\section{Pointing reduces to one scalar}
-
-\begin{definition}[Rotor-plane elevation]
-\label{def:elevation}
-For a unit thrust axis $b_3$ and a unit line of sight $u$,
-$e(b_3,u)=\arcsin\inner{b_3}{u}\in[-\pi/2,\pi/2]$: the elevation of $u$ above
-the rotor plane.
-\end{definition}
-
-\begin{lemma}[Pointing reduction]
-\label{lem:pointing}
-\uses{def:elevation, def:cam-axis}
-Let $b_3$ be a unit vector that is not horizontal and let $u$ be a unit vector. Then
-\[
-  \min_{\psi\in\R,\ \eta\in H}\ \ang\bigl(c(b_3,\psi,\eta),u\bigr)
-  = \operatorname{dist}\bigl(e(b_3,u),H\bigr).
-\]
-So with yaw free, the camera can see direction $u$ if and only if
-$\operatorname{dist}(e(b_3,u),H)\le\alpha$.
-\end{lemma}
-
-\begin{proof}[Proof sketch]
-As $\psi$ varies, $b_1$ covers the whole unit circle of $b_3^\perp$, because $b_3$
-is not horizontal. Write $u=\cos e\,w+\sin e\,b_3$ with $w$ a unit vector in
-$b_3^\perp$. Then
-$\inner{c}{u}=\cos\eta\cos e\inner{b_1}{w}+\sin\eta\sin e\le\cos(\eta-e)$,
-with equality at $b_1=w$, so the minimum angle is $\min_{\eta\in H}|\eta-e|$.
-\end{proof}
-
 \section{Replication: copying the target's motion}
 
 \begin{definition}[Thrust demand]
@@ -88,7 +59,7 @@ $\tau=\delta+\Delta\Theta/\omega_\theta$.
 
 \begin{theorem}[Formation hold]
 \label{thm:formation}
-\uses{lem:pointing, lem:lag, def:pointing-demand, def:maintainable}
+\uses{thm:pointing, lem:lag, def:pointing-demand, def:maintainable}
 Tracking is maintainable if
 $\vD\ge v_{\max}$, $F^*<f_{\max}$, $\Theta^*\le\theta_{\max}$, and there exist
 $u^*$ and $d$ with
