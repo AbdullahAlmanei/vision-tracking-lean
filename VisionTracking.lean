@@ -12,4 +12,5 @@ import VisionTracking.AxisAngle
 import VisionTracking.Lifting
 import VisionTracking.Regularity
 import VisionTracking.RateBound
+import VisionTracking.FrameRate
 import VisionTracking.Plan

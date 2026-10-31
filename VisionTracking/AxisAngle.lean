@@ -320,6 +320,28 @@ theorem toF_unit {c : E3} (hc : ‖c‖ = 1) : ‖toF a₁ a₂ c‖ = 1 := by
 theorem toF_orth {c d : E3} (hcd : ⟪c, d⟫ = 0) : ⟪toF a₁ a₂ c, toF a₁ a₂ d⟫ = 0 := by
   rw [← inner_ofF ha₁ ha₂ ha, ofF_toF ha₁ ha₂ ha, ofF_toF ha₁ ha₂ ha, hcd]
 
+theorem toF_ofF (x : E3) : toF a₁ a₂ (ofF a₁ a₂ x) = x := by
+  have e11 : ⟪a₁, a₁⟫ = 1 := by rw [real_inner_self_eq_norm_sq, ha₁]; norm_num
+  have e22 : ⟪a₂, a₂⟫ = 1 := by rw [real_inner_self_eq_norm_sq, ha₂]; norm_num
+  have e33 : ⟪cross a₁ a₂, cross a₁ a₂⟫ = 1 := by
+    rw [real_inner_self_eq_norm_sq, norm_cross_of_orthonormal ha₁ ha₂ ha]; norm_num
+  have e21 : ⟪a₂, a₁⟫ = 0 := by rw [real_inner_comm]; exact ha
+  have e13 := inner_cross_left a₁ a₂
+  have e23 := inner_cross_right a₁ a₂
+  have e31 : ⟪cross a₁ a₂, a₁⟫ = 0 := by rw [real_inner_comm]; exact e13
+  have e32 : ⟪cross a₁ a₂, a₂⟫ = 0 := by rw [real_inner_comm]; exact e23
+  obtain ⟨t0, t1, t2⟩ := toF_ofLp a₁ a₂ (ofF a₁ a₂ x)
+  ext j; fin_cases j
+  · simp only [Fin.zero_eta]; rw [t0]
+    simp only [ofF, inner_add_right, real_inner_smul_right, e11, ha, e13]; ring
+  · simp only [Fin.mk_one]; rw [t1]
+    simp only [ofF, inner_add_right, real_inner_smul_right, e21, e22, e23]; ring
+  · simp only [Fin.reduceFinMk]; rw [t2]
+    simp only [ofF, inner_add_right, real_inner_smul_right, e31, e32, e33]; ring
+
+theorem norm_toF (v : E3) : ‖toF a₁ a₂ v‖ = ‖v‖ := by
+  rw [← norm_ofF ha₁ ha₂ ha, ofF_toF ha₁ ha₂ ha]
+
 end FrameCoords
 
 theorem cosTr_toF (a₁ a₂ c₁ c₂ : E3) :
@@ -328,6 +350,31 @@ theorem cosTr_toF (a₁ a₂ c₁ c₂ : E3) :
   obtain ⟨q0, q1, q2⟩ := toF_ofLp a₁ a₂ c₂
   rw [cosTr, p0, p1, q0, q1, frameTrace, inner_cross_cross]
   ring
+
+/-- The explicit rotation vector between two frames (valid for angles `≤ π/2`). -/
+noncomputable def frameRotVec (a₁ a₂ c₁ c₂ : E3) : E3 :=
+  ofF a₁ a₂ (psiVec (sigmaVec (toF a₁ a₂ c₁) (toF a₁ a₂ c₂)))
+
+/-- **Explicit axis-angle** for frames at most a right angle apart. -/
+theorem frameRotVec_spec {a₁ a₂ c₁ c₂ : E3} (ha₁ : ‖a₁‖ = 1) (ha₂ : ‖a₂‖ = 1)
+    (ha : ⟪a₁, a₂⟫ = 0) (hc₁ : ‖c₁‖ = 1) (hc₂ : ‖c₂‖ = 1) (hc : ⟪c₁, c₂⟫ = 0)
+    (htr : 1 ≤ frameTrace a₁ a₂ c₁ c₂) :
+    ‖frameRotVec a₁ a₂ c₁ c₂‖ = rotAngle a₁ a₂ c₁ c₂ ∧
+      rotate (frameRotVec a₁ a₂ c₁ c₂) a₁ = c₁ ∧ rotate (frameRotVec a₁ a₂ c₁ c₂) a₂ = c₂ ∧
+      rotate (frameRotVec a₁ a₂ c₁ c₂) (cross a₁ a₂) = cross c₁ c₂ := by
+  have hr := coords_unit (toF_unit ha₁ ha₂ ha hc₁)
+  have hs := coords_unit (toF_unit ha₁ ha₂ ha hc₂)
+  have hrs := coords_orth (toF_orth ha₁ ha₂ ha hc)
+  have hct := cosTr_toF a₁ a₂ c₁ c₂
+  obtain ⟨hn, h1, h2⟩ := core_rotate_psi hr hs hrs (by rw [hct]; linarith)
+  have hr1 : rotate (frameRotVec a₁ a₂ c₁ c₂) a₁ = c₁ := by
+    have := rotate_ofF ha₁ ha₂ ha (psiVec (sigmaVec (toF a₁ a₂ c₁) (toF a₁ a₂ c₂))) ex
+    rwa [ofF_ex, h1, ofF_toF ha₁ ha₂ ha] at this
+  have hr2 : rotate (frameRotVec a₁ a₂ c₁ c₂) a₂ = c₂ := by
+    have := rotate_ofF ha₁ ha₂ ha (psiVec (sigmaVec (toF a₁ a₂ c₁) (toF a₁ a₂ c₂))) ey
+    rwa [ofF_ey, h2, ofF_toF ha₁ ha₂ ha] at this
+  refine ⟨?_, hr1, hr2, by rw [rotate_cross, hr1, hr2]⟩
+  rw [frameRotVec, norm_ofF ha₁ ha₂ ha, hn, hct, rotAngle]
 
 /-- **Axis-angle.** -/
 theorem exists_rotate_frame {a₁ a₂ c₁ c₂ : E3} (ha₁ : ‖a₁‖ = 1) (ha₂ : ‖a₂‖ = 1)

@@ -45,7 +45,7 @@ structure KinPlan (Q : QuadParams) (C : CameraParams) (δ : ℝ) where
   b₁_unit : ∀ k, ‖b₁ k‖ = 1
   b₂_unit : ∀ k, ‖b₂ k‖ = 1
   b₁₂_orth : ∀ k, ⟪b₁ k, b₂ k⟫ = 0
-  near : ∀ k, -1 < frameTrace (b₁ k) (b₂ k) (b₁ (k + 1)) (b₂ (k + 1))
+  near : ∀ k, 1 ≤ frameTrace (b₁ k) (b₂ k) (b₁ (k + 1)) (b₂ (k + 1))
 
 namespace KinPlan
 
@@ -55,8 +55,7 @@ noncomputable def b₃ (k : ℕ) : E3 := cross (p.b₁ k) (p.b₂ k)
 
 /-- The rotation vector taking frame `k` to frame `k + 1`. -/
 noncomputable def rotVec (k : ℕ) : E3 :=
-  Classical.choose (exists_rotate_frame (p.b₁_unit k) (p.b₂_unit k) (p.b₁₂_orth k)
-    (p.b₁_unit (k + 1)) (p.b₂_unit (k + 1)) (p.b₁₂_orth (k + 1)) (p.near k))
+  frameRotVec (p.b₁ k) (p.b₂ k) (p.b₁ (k + 1)) (p.b₂ (k + 1))
 
 /-- Body rates: the rotation vector in body coordinates, per unit time. -/
 noncomputable def rate (k : ℕ) : E3 := δ⁻¹ • toF (p.b₁ k) (p.b₂ k) (p.rotVec k)
@@ -74,8 +73,8 @@ theorem rotVec_spec (k : ℕ) :
       rotate (p.rotVec k) (p.b₁ k) = p.b₁ (k + 1) ∧
       rotate (p.rotVec k) (p.b₂ k) = p.b₂ (k + 1) ∧
       rotate (p.rotVec k) (p.b₃ k) = p.b₃ (k + 1) :=
-  Classical.choose_spec (exists_rotate_frame (p.b₁_unit k) (p.b₂_unit k) (p.b₁₂_orth k)
-    (p.b₁_unit (k + 1)) (p.b₂_unit (k + 1)) (p.b₁₂_orth (k + 1)) (p.near k))
+  frameRotVec_spec (p.b₁_unit k) (p.b₂_unit k) (p.b₁₂_orth k)
+    (p.b₁_unit (k + 1)) (p.b₂_unit (k + 1)) (p.b₁₂_orth (k + 1)) (p.near k)
 
 /-- The world angular velocity of the planned body rates, times `δ`, is the rotation
 vector of the frame change. -/
@@ -85,6 +84,11 @@ theorem smul_worldRate_rate (hδ : δ ≠ 0) (k : ℕ) :
       = ofF (p.b₁ k) (p.b₂ k) (p.rate k) := rfl
   rw [h, rate, ofF_smul, smul_smul, mul_inv_cancel₀ hδ, one_smul,
     ofF_toF (p.b₁_unit k) (p.b₂_unit k) (p.b₁₂_orth k)]
+
+/-- The body rates are the explicit rotation vector in body coordinates, per unit time. -/
+theorem rate_eq (k : ℕ) : p.rate k = δ⁻¹ • psiVec (sigmaVec (toF (p.b₁ k) (p.b₂ k) (p.b₁ (k + 1)))
+    (toF (p.b₁ k) (p.b₂ k) (p.b₂ (k + 1)))) := by
+  rw [rate, rotVec, frameRotVec, toF_ofF (p.b₁_unit k) (p.b₂_unit k) (p.b₁₂_orth k)]
 
 end KinPlan
 
