@@ -63,6 +63,7 @@ include hδ
 omit hδ in
 theorem speed_pos (k : ℕ) : 0 < ‖T.v k‖ := P.vMin_pos.trans_le (T.speed_ge k)
 
+omit hδ in
 theorem norm_tan_part_le (k : ℕ) :
     ‖(⟪T.v (k + 1) - T.v k, T.v k⟫ / ‖T.v k‖ ^ 2) • T.v k‖ ≤ δ * P.aTan := by
   have hn := speed_pos T k
@@ -76,7 +77,7 @@ theorem norm_tan_part_le (k : ℕ) :
 theorem norm_targetAcc_le (k : ℕ) : ‖δ⁻¹ • (T.v (k + 1) - T.v k)‖ ≤ P.Amax := by
   have hsplit : T.v (k + 1) - T.v k = (⟪T.v (k + 1) - T.v k, T.v k⟫ / ‖T.v k‖ ^ 2) • T.v k
       + ((T.v (k + 1) - T.v k) - (⟪T.v (k + 1) - T.v k, T.v k⟫ / ‖T.v k‖ ^ 2) • T.v k) := by abel
-  have h1 := norm_tan_part_le T hδ k
+  have h1 := norm_tan_part_le T k
   have h2 := T.normal k
   have hv := T.speed_le k
   have hR := P.turnRadius_pos
@@ -224,7 +225,7 @@ theorem thrustStar_horiz_ge (k : ℕ) :
   have hNb : ‖N‖ ≤ δ * (‖V‖ ^ 2 / P.turnRadius) := by
     have := T.normal k; rw [mul_div_assoc] at this; exact this
   have hsb : |s| * nh ≤ δ * P.aTan := by
-    have h1 := norm_tan_part_le T hδ k
+    have h1 := norm_tan_part_le T k
     rw [norm_smul, Real.norm_eq_abs] at h1
     calc |s| * nh ≤ |s| * ‖V‖ := by gcongr
       _ ≤ δ * P.aTan := h1
