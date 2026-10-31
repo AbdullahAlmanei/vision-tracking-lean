@@ -1,67 +1,75 @@
-\chapter{Speed is a hard limit}
+\chapter{Directional speed limits}
 \label{chap:speed}
 
-\begin{lemma}[Bounded advance]
-\label{lem:inner-displacement}
-\lean{VisionTracking.inner_displacement_le}
+Along a unit direction $u$, the quadrotor's velocity component is driven by
+$F\inner{b_3}{u}-g\inner{\up}{u}-c_D\norm{v}\inner{v}{u}$, with the collective
+thrust $F\in[0,4f_{\mathrm{motor}}/m]$ and $b_3$ inside the tilt envelope. No
+artificial speed cap is involved: the limit comes from motors, tilt and drag, and
+it depends on the direction.
+
+\begin{definition}[Reach, push, directional speed]
+\label{def:dir-speed}
+\lean{VisionTracking.QuadParams.maxAcc, VisionTracking.QuadParams.reach,
+  VisionTracking.QuadParams.push, VisionTracking.QuadParams.dirSpeed}
 \leanok
-\uses{def:steps}
-If $x,v$ step with period $\delta\ge0$ and $\norm{v_k}\le\vD$ for all $k$, then for
-every unit vector $u$, $\inner{x_k-x_0}{u}\le k\delta\vD$.
+\uses{def:quad-params}
+$\mathrm{reach}(u)=\cos\max(0,\ang(u,\up)-\theta_{\max})$;
+$\mathrm{push}(u)=F_{\max}\max(0,\mathrm{reach}(u))-g\inner{\up}{u}$;
+$\mathrm{dirSpeed}(u)=\sqrt{\max(0,\mathrm{push}(u))/c_D}$. Straight down this is
+$\sqrt{g/c_D}$, the terminal fall speed. Horizontally it is
+$\sqrt{F_{\max}\sin\theta_{\max}/c_D}$, and straight up
+$\sqrt{(F_{\max}-g)/c_D}$.
+\end{definition}
+
+\begin{lemma}[Tilt envelope bounds reach]
+\label{lem:reach}
+\lean{VisionTracking.inner_le_reach, VisionTracking.QuadTraj.thrust_le,
+  VisionTracking.dir_step_le}
+\leanok
+\uses{def:dir-speed, def:quad-traj}
+$\inner{b_3}{u}\le\mathrm{reach}(u)$ whenever $\ang(b_3,\up)\le\theta_{\max}$. Hence
+$\inner{v_{k+1}}{u}\le\inner{v_k}{u}+\delta(\mathrm{push}(u)-c_D\norm{v_k}\inner{v_k}{u})$.
 \end{lemma}
 
 \begin{proof}
 \leanok
-Each step advances by
-$\tfrac{\delta}{2}\inner{v_k+v_{k+1}}{u}\le\tfrac{\delta}{2}(\norm{v_k}+\norm{v_{k+1}})\le\delta\vD$.
-Sum over the steps.
+Use the triangle inequality for angles and the fact that cosine decreases on
+$[0,\pi]$.
 \end{proof}
 
-\begin{definition}[Straight-line target]
-\label{def:straight-target}
-\lean{VisionTracking.straightTarget}
+\begin{lemma}[Excess contracts]
+\label{lem:dir-excess}
+\lean{VisionTracking.dir_excess_step, VisionTracking.dir_displacement_le}
 \leanok
-\uses{def:target-traj}
-$p_k = p_0 + k\delta v_{\max}u$ and $v_k = v_{\max}u$ for a unit vector $u$.
-It is admissible: its speed is $v_{\max}$ and its velocity never changes.
-\end{definition}
+\uses{lem:reach}
+Suppose $\delta c_D v_{\mathrm{env}}\le1/2$ and $\mathrm{push}(u)\le c_DV^2$ with
+$0<V\le v_{\mathrm{env}}$. Then $\inner{v}{u}-V$ contracts by $1-2\delta c_DV$ per
+step once positive, and
+$\inner{x_k-x_0}{u}\le k\delta V+\max(0,\inner{v_0}{u}-V)/(2c_DV)$.
+\end{lemma}
 
-\begin{theorem}[Speed impossibility]
-\label{thm:speed}
-\lean{VisionTracking.straightTarget_escapes}
+\begin{proof}
 \leanok
-\uses{lem:inner-displacement, def:straight-target, def:visible}
-If $\vD < v_{\max}$, then for every unit $u$ and every admissible drone trajectory,
-whatever its camera does, the straight-line target is out of detection range at
-some frame.
+Split on the sign of $\inner{v_k}{u}$ and on its position relative to $V$; above
+$V$, quadratic drag beats the push. Then telescope.
+\end{proof}
+
+\begin{theorem}[Directional escape]
+\label{thm:speed}
+\lean{VisionTracking.not_maintainable_of_dirSpeed_lt,
+  VisionTracking.straightTarget_escapes_of_displacement, VisionTracking.straightTarget,
+  VisionTracking.straightTarget_startsAt, VisionTracking.inner_displacement_le,
+  VisionTracking.straightTarget_escapes}
+\leanok
+\uses{lem:dir-excess, def:maintainable}
+If the target may fly along $u$ (within its climb limit) faster than
+$\mathrm{dirSpeed}(u)$, no full-information strategy keeps it in view, whatever the
+motors, attitude and camera do. Straight down, this is the \emph{dive limit}: the
+quadrotor cannot follow a target sinking faster than $\sqrt{g/c_D}$.
 \end{theorem}
 
 \begin{proof}
 \leanok
-By Lemma~\ref{lem:inner-displacement},
-$\inner{p_k-x_k}{u}\ge\inner{p_0-x_0}{u}+k\delta(v_{\max}-\vD)$, which eventually
-exceeds $\ddet(s)$. And $\norm{p_k-x_k}\ge\inner{p_k-x_k}{u}$.
+Fly the target straight along $u$ at $v_{\max}$. Its advance outruns the bound of
+Lemma~\ref{lem:dir-excess}.
 \end{proof}
-
-\begin{corollary}
-\label{cor:speed}
-\lean{VisionTracking.not_maintainable_of_slower}
-\leanok
-\uses{thm:speed, def:maintainable}
-If $\vD < v_{\max}$, tracking is not maintainable from any start position against
-a target starting at full speed.
-\end{corollary}
-
-\begin{proof}
-\leanok
-The trajectory a strategy produces against the straight-line target is an
-admissible drone trajectory; apply Theorem~\ref{thm:speed}.
-\end{proof}
-
-\begin{remark}
-The argument does not use causality, so it also defeats a drone that knows the
-target's future. In the reference scenario it requires a drone capable of at
-least $51.4$\,m/s. The drag-limited top speed is
-$\sqrt{\sqrt{f_{\max}^2-g^2}/c_D}$ in level flight, so this is a genuine
-constraint on thrust and drag, not just on the speed cap.
-\end{remark}

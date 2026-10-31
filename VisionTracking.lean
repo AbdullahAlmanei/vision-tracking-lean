@@ -4,3 +4,8 @@ import VisionTracking.Pointing
 import VisionTracking.Overhead
 import VisionTracking.Frame
 import VisionTracking.SteadyChase
+import VisionTracking.DirectionalSpeed
+import VisionTracking.Motors
+import VisionTracking.Rotation
+import VisionTracking.SteadyFormation
+import VisionTracking.Plan

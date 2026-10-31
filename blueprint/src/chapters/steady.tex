@@ -1,0 +1,115 @@
+\chapter{Speed costs tilt, and tilt costs view}
+\label{chap:steady}
+
+\begin{lemma}[Body-frame facts]
+\label{lem:frame}
+\lean{VisionTracking.QuadTraj.b₃_unit, VisionTracking.QuadTraj.b₁₃_orth,
+  VisionTracking.QuadTraj.thrust_nonneg, VisionTracking.norm_cross_of_orthonormal,
+  VisionTracking.inner_cross_left, VisionTracking.inner_cross_right}
+\leanok
+\uses{def:quad-traj}
+In every state, $b_3=b_1\times b_2$ is a unit vector orthogonal to $b_1$.
+\end{lemma}
+
+\begin{theorem}[Pointing bound for every quadrotor state]
+\label{thm:quad-pointing}
+\lean{VisionTracking.QuadTraj.abs_sub_elevation_le_angle,
+  VisionTracking.QuadTraj.elevation_mem_of_sees}
+\leanok
+\uses{lem:frame, lem:orthonormal-bound}
+In every state, the camera misses a unit direction $u$ by at least
+$|\eta-e(b_3,u)|$. So if it sees $u$, then
+$e(b_3,u)\in[\eta_{\mathrm{lo}}-\alpha,\eta_{\mathrm{hi}}+\alpha]$.
+\end{theorem}
+
+\begin{definition}[Chase tilt]
+\label{def:chase-tilt}
+\lean{VisionTracking.chaseTilt, VisionTracking.steadyAxis}
+\leanok
+$\theta(v)=\arctan(c_Dv^2/g)$, and the steady axis
+$\cos\theta\,\up+\sin\theta\,\hat w$.
+\end{definition}
+
+\begin{theorem}[Steady flight forces the tilt]
+\label{thm:forced-tilt}
+\lean{VisionTracking.b₃_eq_steadyAxis, VisionTracking.eq_of_smul_eq_smul_of_unit}
+\leanok
+\uses{def:chase-tilt, lem:frame}
+If the velocity is horizontal, nonzero and unchanged over a step, then whatever the
+motors do, $b_3$ is the steady axis leaning by $\theta(\norm{v})$ towards the
+direction of travel.
+\end{theorem}
+
+\begin{theorem}[The steady-chase window]
+\label{thm:window}
+\lean{VisionTracking.steady_chase_window, VisionTracking.steady_visible_iff,
+  VisionTracking.inplane_visible_iff, VisionTracking.inner_steadyAxis,
+  VisionTracking.norm_steadyAxis}
+\leanok
+\uses{thm:forced-tilt, thm:quad-pointing}
+In steady flight, a target seen ahead in the plane of travel at elevation $\lambda$
+must satisfy $\eta_{\mathrm{lo}}-\alpha\le\theta(v)+\lambda\le\eta_{\mathrm{hi}}+\alpha$.
+\end{theorem}
+
+\begin{corollary}[Trackable speeds depend on the altitude offset]
+\label{cor:window-speed}
+\lean{VisionTracking.chaseTilt_add_le_iff, VisionTracking.le_chaseTilt_add_iff,
+  VisionTracking.arctan_le_iff_le_tan, VisionTracking.chaseTilt_nonneg,
+  VisionTracking.chaseTilt_lt}
+\leanok
+\uses{thm:window}
+$c_Dv^2\le g\tan(\eta_{\mathrm{hi}}+\alpha-\lambda)$ and
+$g\tan(\eta_{\mathrm{lo}}-\alpha-\lambda)\le c_Dv^2$. From directly behind at the same
+altitude, the top speed is $\sqrt{g\tan(\eta_{\mathrm{hi}}+\alpha)/c_D}$. Flying
+above the target raises it; flying below lowers it.
+\end{corollary}
+
+\section{Lifting plans to motors and attitude}
+
+\begin{theorem}[Motor allocation]
+\label{thm:motors}
+\lean{VisionTracking.exists_motors_of_wrench, VisionTracking.QuadParams.mix,
+  VisionTracking.totalThrust_mix, VisionTracking.torque_mix}
+\leanok
+\uses{def:mixing}
+The mixer has an explicit inverse. A wrench $(F,\tau)$ whose per-axis demands fit
+within the thrust margins is produced by motors in $[0,f_{\mathrm{motor}}]$.
+\end{theorem}
+
+\begin{theorem}[Rodrigues is a proper rotation]
+\label{thm:rotation}
+\lean{VisionTracking.inner_rotate, VisionTracking.norm_rotate, VisionTracking.rotate_cross,
+  VisionTracking.angle_rotate_le, VisionTracking.rodr, VisionTracking.inner_rodr,
+  VisionTracking.rodr_cross}
+\leanok
+\uses{def:rotate}
+$\mathrm{rotate}(\omega)$ preserves inner and cross products, so attitude updates keep
+the frame right-handed orthonormal. It turns any vector by at most $\norm{\omega}$.
+The polynomial identities are proved by \texttt{linear\_combination} with
+Gröbner-basis certificates.
+\end{theorem}
+
+\section{Steady formation: exact characterization}
+
+\begin{theorem}[Steady formation iff window]
+\label{thm:steady-formation}
+\lean{VisionTracking.steady_formation_iff, VisionTracking.levelTarget,
+  VisionTracking.steady_thrust, VisionTracking.exists_aligned,
+  VisionTracking.cross_cross_self}
+\leanok
+\uses{thm:window, thm:motors, thm:rotation, thm:pointing}
+Against a target flying straight and level at speed $v$, a valid rigid-body
+trajectory holding the target at elevation $\lambda$ and range $r\le\ddet$ in
+steady formation exists \emph{iff}
+$\eta_{\mathrm{lo}}-\alpha\le\theta(v)+\lambda\le\eta_{\mathrm{hi}}+\alpha$. This
+assumes the four motors can produce $m\sqrt{g^2+(c_Dv^2)^2}$ and that
+$\theta(v)\le\theta_{\max}$.
+\end{theorem}
+
+\begin{proof}
+\leanok
+$\Rightarrow$ is Theorem~\ref{thm:window}. $\Leftarrow$: constant velocity; $b_3$
+on the steady axis; $b_1$ in the rotor plane towards the line of sight;
+$b_2=b_3\times b_1$; zero body rates; four equal motor thrusts; the hinge clamped to
+the elevation.
+\end{proof}

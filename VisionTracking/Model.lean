@@ -168,6 +168,9 @@ structure QuadParams where
   tiltMax : ℝ
   /-- Flight-controller limit on the body rate `‖Ω‖`. -/
   rateMax : ℝ
+  /-- Validity envelope of the drag model: speeds the model is used at. Results
+  assume the step is fine enough that `δ c_D speedEnv ≤ 1/2`. -/
+  speedEnv : ℝ
   g_pos : 0 < g
   mass_pos : 0 < mass
   Jx_pos : 0 < Jx
@@ -181,6 +184,7 @@ structure QuadParams where
   tiltMax_pos : 0 < tiltMax
   tiltMax_lt : tiltMax < Real.pi / 2
   rateMax_pos : 0 < rateMax
+  speedEnv_pos : 0 < speedEnv
 
 /-- Collective thrust of the four motors. -/
 def totalThrust (f : Fin 4 → ℝ) : ℝ := f 0 + f 1 + f 2 + f 3
@@ -237,6 +241,7 @@ structure QuadTraj (Q : QuadParams) (C : CameraParams) (δ : ℝ) where
   motor_le : ∀ k i, f k i ≤ Q.fMotor
   tilt_le : ∀ k, angle (b₃ k) up ≤ Q.tiltMax
   rate_le : ∀ k, ‖Ω k‖ ≤ Q.rateMax
+  speed_le : ∀ k, ‖v k‖ ≤ Q.speedEnv
   hinge_ge : ∀ k, C.hingeLo ≤ η k
   hinge_le : ∀ k, η k ≤ C.hingeHi
   hinge_rate : ∀ k, abs (η (k + 1) - η k) ≤ δ * C.hingeRate

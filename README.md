@@ -13,13 +13,24 @@ roadmap.
 
 ## Status
 
-| Piece | Status |
-|---|---|
-| Discrete-time model (`VisionTracking/Model.lean`) | defined |
-| Speed impossibility: `D.vMax < P.vMax` ⇒ not maintainable (`VisionTracking/SpeedBound.lean`) | proved, `sorry`-free |
-| Pointing reduction: camera can see `u` ⇔ rotor-plane elevation of `u` ∈ [η_lo − α, η_hi + α] (`VisionTracking/Pointing.lean`) | proved, `sorry`-free |
-| Overhead geometry: hinge range needed for a tilt band; fixed mount works ⇔ band width ≤ 2α (`VisionTracking/Overhead.lean`) | proved, `sorry`-free |
-| Tilt band from target motion, formation hold, converse bounds, master inequality | stated in the blueprint roadmap |
+Every statement is about a full rigid-body quadrotor: a right-handed orthonormal
+body frame (roll, pitch, yaw), body rates driven by Euler's equation, four bounded
+motors in "+" layout producing thrust and torques, Rodrigues attitude updates,
+quadratic drag, and a camera on a one-axis pitch hinge.
+
+| Result | File | Status |
+|---|---|---|
+| Directional speed limits from motors, tilt envelope and drag (dive limit √(g/c_D), level and climb limits); a faster target along that direction escapes every strategy | `DirectionalSpeed.lean` | proved |
+| Pointing reduction: the camera sees `u` iff the rotor-plane elevation of `u` is in `[η_lo − α, η_hi + α]`; holds in every quad state | `Pointing.lean`, `Frame.lean` | proved |
+| Overhead geometry: hinge range needed for a tilt band; a fixed mount works iff the band is at most `2α` wide | `Overhead.lean` | proved |
+| Steady flight forces the tilt `arctan(c_D v²/g)`; steady-chase window `η_lo − α ≤ θ(v) + el ≤ η_hi + α`; trackable speed depends on the altitude offset | `SteadyChase.lean` | proved |
+| Steady formation exists iff the window holds (explicit four-motor construction) | `SteadyFormation.lean` | proved |
+| Motor allocation (explicit inverse mixer); Rodrigues preserves frames and turns vectors by at most `‖ω‖` | `Motors.lean`, `Rotation.lean` | proved |
+| Axis-angle between frames | `Plan.lean` | stated, `sorry` |
+| Manoeuvring-target sufficiency (torque-limited smoothing), master inequality | blueprint roadmap | planned |
+
+The single `sorry` is `exists_rotate_frame` in `Plan.lean`. Everything else depends
+only on `propext`, `Classical.choice` and `Quot.sound`.
 
 ## Building
 

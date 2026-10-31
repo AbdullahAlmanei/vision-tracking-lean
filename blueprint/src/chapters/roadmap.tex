@@ -1,120 +1,34 @@
-\chapter{Roadmap to the master inequality}
+\chapter{Roadmap: manoeuvring targets}
 \label{chap:roadmap}
 
-Nothing in this chapter is formalised yet; it fixes the statements to aim at.
-Throughout, $H=[\eta_{\mathrm{lo}},\eta_{\mathrm{hi}}]$ is the hinge interval and
-$\operatorname{dist}(e,H)$ is the distance from a number to that interval.
+What remains for the full master inequality is sufficiency against
+\emph{manoeuvring} targets, plus the necessity of the window for drones that do not
+fly steadily.
 
-\section{Replication: copying the target's motion}
-
-\begin{definition}[Thrust demand]
-\label{def:thrust-demand}
-\uses{def:drone-params, def:target-traj}
-For a target velocity $v$ and acceleration $a$, the specific thrust the drone
-needs in order to share them is $F(v,a)=a+g\up+c_D\norm{v}v$. Over all admissible
-target states, define the \emph{peak thrust} $F^*=\sup\norm{F}$, the
-\emph{tilt demand} $\Theta^*=\sup\ang(F,\up)$, and the \emph{minimum tilt}
-$\Theta_*=\inf\ang(F,\up)$. The minimum tilt is positive because the target can
-never hover.
-\end{definition}
-
-\begin{definition}[Pointing demand]
-\label{def:pointing-demand}
-\uses{def:thrust-demand, def:elevation}
-For a fixed world-frame line of sight $u^*$ (from drone to target),
-$\Pi(u^*)=\sup_{(v,a)}\operatorname{dist}\bigl(e(\hat F(v,a),u^*),H\bigr)$, and
-$\Pi^*=\inf_{u^*}\Pi(u^*)$.
-\end{definition}
-
-\begin{remark}[Overhead pointing demand]
-\label{rem:overhead-demand}
-\uses{def:pointing-demand, thm:overhead-band}
-For $u^*=-\up$, Theorem~\ref{thm:overhead-band} with the tilt band
-$[\Theta_*,\Theta^*]$ gives $\Pi(-\up)=0$ exactly when the hinge reaches from
-$\Theta_*-\pi/2+\alpha$ down to $\Theta^*-\pi/2-\alpha$ (or further), and
-Theorem~\ref{thm:fixed-overhead} settles the fixed-camera case.
-\end{remark}
-
-\section{Formation hold (sufficiency)}
-
-\begin{lemma}[Lag radius]
-\label{lem:lag}
-\uses{def:thrust-demand, def:drone-traj}
-Suppose $F^*\le f_{\max}-m$ for a spare-thrust margin $m>0$, and
-$\Theta^*\le\theta_{\max}$. Then a strategy that observes only bearing and size
-holds the relative position within $\rho_{\mathrm{lag}}$ of any chosen offset,
-where $\rho_{\mathrm{lag}}$ is explicit in $\delta$, $\omega_\theta$, the target's
-acceleration jump $\Delta A$, the size-to-range ambiguity $\kappa$ and $m$.
-Expected order:
-$\rho_{\mathrm{lag}}=O\!\bigl(\Delta A\,\tau^2+(\Delta A\,\tau)^2/m\bigr)$ with
-$\tau=\delta+\Delta\Theta/\omega_\theta$.
+\begin{lemma}[Axis-angle]
+\label{lem:axis-angle}
+\lean{VisionTracking.exists_rotate_frame}
+\uses{thm:rotation}
+Two right-handed orthonormal frames differ by one Rodrigues rotation of angle at
+most $\pi$. \emph{Stated in Lean; proof pending.}
 \end{lemma}
 
-\begin{theorem}[Formation hold]
-\label{thm:formation}
-\uses{thm:pointing, lem:lag, def:pointing-demand, def:maintainable}
-Tracking is maintainable if
-$\vD\ge v_{\max}$, $F^*<f_{\max}$, $\Theta^*\le\theta_{\max}$, and there exist
-$u^*$ and $d$ with
-\[
-  \Pi(u^*)+\arcsin\frac{\rho_{\mathrm{lag}}}{d}+\lambda_{\mathrm{cam}}\le\alpha,
-  \qquad d+\rho_{\mathrm{lag}}\le\ddet(s).
-\]
-Here $\lambda_{\mathrm{cam}}$ is the angle by which yaw and hinge lag their
-targets, bounded by the target's turn rate divided by $\omega_\psi$ and
-$\omega_\eta$.
-\end{theorem}
+\begin{remark}[Torque limits force smoothing]
+The extrapolating formation strategy holds position to $O(\delta^3j)$, but its
+thrust direction changes in jumps of $O(\delta j)$. Under bounded motor torque,
+that means unbounded angular acceleration as $\delta\to0$. A manoeuvring formation
+therefore needs a smoothing horizon $\tau$, set by the torque budget
+$L f_{\mathrm{motor}}/J$, which trades position error $O(j\tau^3)$ for feasible
+angular accelerations. Once that horizon is quantified, the master inequality
+assembles from: Theorem~\ref{thm:speed} (directional limits),
+Theorem~\ref{thm:steady-formation} (pointing in steady formation), the overhead
+tilt-band results, and a lag margin fixed by $\tau$.
+\end{remark}
 
-\section{Converse bounds (necessity)}
-
-\begin{conjecture}[Unavoidable lag]
-\label{conj:min-lag}
-\uses{def:strategy}
-Because the drone's acceleration can turn by at most $f_{\max}\omega_\theta$ per
-unit time, a target acceleration jump of $\Delta A$ forces a relative
-displacement of at least
-$\rho_{\min}\approx\Delta A^3/(3f_{\max}^2\omega_\theta^2)$ against any strategy,
-plus $\Delta A\,\tau_{\mathrm{obs}}^2/2$ for an observation delay
-$\tau_{\mathrm{obs}}$.
-\end{conjecture}
-
-\begin{conjecture}[Pointing is necessary]
-\label{conj:pointing-necessary}
-\uses{conj:min-lag, def:pointing-demand}
-If $\vD=v_{\max}$, the drone must, on long straight target segments, fly at
-$v_{\max}$ with the steady thrust direction $\hat F(v_{\max}u,0)$, so pointing
-from that state is forced. For $\vD>v_{\max}$ the drone has slack to weave, and
-the forced quantity is a time average (by Jensen's inequality applied to the
-convex drag term). The target statement: if
-$\Pi^*>\alpha+\arcsin(\rho_{\min}/\ddet)$, tracking is not maintainable.
-\end{conjecture}
-
-\section{The master inequality}
-
-\begin{conjecture}[Master inequality, P3]
-\label{conj:master}
-\uses{thm:speed, thm:formation, conj:pointing-necessary}
-Let $\ddet = sW/(n\Phi)$ and write $\Phi = 2k\alpha$, where $k\ge1$ is the image
-aspect factor. Tracking is maintainable if
-\[
-  \vD\ge v_{\max},\quad F^*<f_{\max},\quad \Theta^*\le\theta_{\max},\quad
-  \Pi^*+\arcsin\frac{\rho_{\mathrm{lag}}}{\ddet-\rho_{\mathrm{lag}}}
-     +\lambda_{\mathrm{cam}}\le\alpha,
-\]
-and it is not maintainable if any of the first three fails or if
-$\Pi^*>\alpha+\arcsin(\rho_{\min}/\ddet)$. The gap between the two conditions is
-$\rho_{\mathrm{lag}}$ versus $\rho_{\min}$ and $\lambda_{\mathrm{cam}}$, and it
-vanishes as $\delta\to0$ and the rate limits grow. Because $\ddet$ falls as
-$\alpha$ rises, the field of view has an optimum. Design rules (minimum FOV for a
-given standoff, minimum hinge range for a given $\Theta^*$, whether a fixed mount
-suffices) are corollaries.
-\end{conjecture}
-
-\begin{remark}[What the reference numbers suggest]
-For a quadrotor with $f_{\max}=4g$ that can just reach $51.4$\,m/s, the drag tilt at
-top speed is about $\arccos(g/f_{\max})\approx75^\circ$. A fixed down-looking camera
-with $\alpha=45^\circ$ therefore fails from overhead. A fixed camera mounted about
-$45^\circ$ below forward succeeds whenever $\Theta^*-\Theta_*\le90^\circ$. The lag
-terms come out at centimetres to metres, so the binding constraints are expected
-to be speed, thrust and pointing geometry, not proximity.
+\begin{remark}[Weaving drones]
+Theorem~\ref{thm:window} constrains frames in which the drone holds its velocity.
+A drone faster than the target could weave. Averaging the translational dynamics
+(drag is convex) shows that its mean forward thrust is at least $c_Dv_T^2$, so the
+tilt cannot be avoided on average. Turning this into a per-frame visibility bound
+is open.
 \end{remark}

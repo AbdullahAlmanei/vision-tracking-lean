@@ -4,15 +4,15 @@
 Space is $\R^3$ with $\up$ pointing up; $\ang(a,b)\in[0,\pi]$ is the unoriented
 angle between vectors. Time is discrete with period $\delta>0$, which is both the
 control period and the camera frame period. Visibility is required at frame
-instants.
+instants. Every statement in this blueprint is about the full rigid-body
+quadrotor below.
 
-\begin{definition}[Trapezoidal stepping]
+\begin{definition}[Stepping]
 \label{def:steps}
 \lean{VisionTracking.StepsWith}
 \leanok
-Position and velocity sequences $x,v:\N\to\R^3$ step with period $\delta$ if
-$x_{k+1} = x_k + \tfrac{\delta}{2}(v_k + v_{k+1})$ for all $k$. This is exact for
-an acceleration held constant over each step.
+Euler update: $x_{k+1}=x_k+\delta v_k$. A position-only observer therefore recovers
+velocities from consecutive positions.
 \end{definition}
 
 \section{Target}
@@ -21,8 +21,9 @@ an acceleration held constant over each step.
 \label{def:target-params}
 \lean{VisionTracking.TargetParams}
 \leanok
-Speed band $0 < v_{\min} \le v_{\max}$, minimum turn radius $R>0$, maximum
-along-track acceleration $a_\parallel \ge 0$, and detection size $s>0$.
+Speed band $0<v_{\min}\le v_{\max}$, minimum turn radius $R>0$, maximum along-track
+acceleration $a_\parallel\ge0$, maximum jerk $j\ge0$, maximum climb/dive angle
+$\gamma<\pi/2$, and detection size $s>0$.
 \end{definition}
 
 \begin{definition}[Admissible target trajectory]
@@ -30,36 +31,23 @@ along-track acceleration $a_\parallel \ge 0$, and detection size $s>0$.
 \lean{VisionTracking.TargetTraj}
 \leanok
 \uses{def:steps, def:target-params}
-Sequences $(p_k, v_k)$ that step with period $\delta$ and satisfy
-$v_{\min}\le\norm{v_k}\le v_{\max}$. The velocity increment
-$\Delta_k = v_{k+1}-v_k$ splits into a part along $v_k$, of size at most
-$\delta a_\parallel$, and a part normal to it, of size at most
-$\delta\norm{v_k}^2/R$. The normal bound is a curvature limit that applies in
-every direction, so climbs and dives obey the same turn radius as level turns.
-Velocity never jumps.
+The speed stays in the band. The velocity increment splits into an along-track
+part (at most $\delta a_\parallel$) and a normal part (at most
+$\delta\norm{v}^2/R$, a turn-radius limit in every direction). The acceleration
+changes by at most $\delta j$ per step, and the climb angle stays within $\gamma$.
 \end{definition}
 
-\section{Drone}
-
-\begin{definition}[Drone parameters]
-\label{def:drone-params}
-\lean{VisionTracking.DroneParams}
-\leanok
-Gravity $g>0$; maximum thrust per unit mass $f_{\max}>g$; quadratic drag
-coefficient $c_D\ge0$; speed cap $v_D>0$; maximum tilt
-$\theta_{\max}\in(0,\pi/2)$; tilt rate $\omega_\theta>0$; yaw rate
-$\omega_\psi>0$.
-\end{definition}
+\section{Camera}
 
 \begin{definition}[Camera parameters]
 \label{def:camera-params}
 \lean{VisionTracking.CameraParams}
 \leanok
-Half-angle $\alpha\in(0,\pi/2)$ of the field-of-view cone inscribed in the image;
-horizontal field of view $\Phi$ spread over $W$ pixels; detection threshold of $n$
-pixels; hinge range $-\pi/2\le\eta_{\mathrm{lo}}\le\eta_{\mathrm{hi}}\le\pi/2$;
-hinge rate $\omega_\eta\ge0$. A fixed camera at mount angle $\eta_0$ is the case
-$\eta_{\mathrm{lo}}=\eta_{\mathrm{hi}}=\eta_0$.
+Half-angle $\alpha$ of the inscribed field-of-view cone; horizontal field of view
+$\Phi$ over $W$ pixels; detection threshold $n$ pixels; hinge range
+$[\eta_{\mathrm{lo}},\eta_{\mathrm{hi}}]\subseteq[-\pi/2,\pi/2]$ about the body
+axis $b_2$; hinge rate $\omega_\eta$. A fixed camera has
+$\eta_{\mathrm{lo}}=\eta_{\mathrm{hi}}$.
 \end{definition}
 
 \begin{definition}[Detection range]
@@ -67,39 +55,69 @@ $\eta_{\mathrm{lo}}=\eta_{\mathrm{hi}}=\eta_0$.
 \lean{VisionTracking.CameraParams.detectRange}
 \leanok
 \uses{def:camera-params}
-$\ddet(s) = s \,/\, \bigl(2\tan(n\Phi/2W)\bigr) \approx sW/(n\Phi)$: the largest
-distance at which a target of size $s$ spans $n$ pixels.
+$\ddet(s)=s/(2\tan(n\Phi/2W))\approx sW/(n\Phi)$.
 \end{definition}
 
-\begin{definition}[Camera boresight]
+\begin{definition}[Yaw-parametrised boresight]
 \label{def:cam-axis}
 \lean{VisionTracking.camAxis, VisionTracking.bodyForward, VisionTracking.heading}
 \leanok
-For a thrust axis $b_3$ (unit, not horizontal) and yaw $\psi$, the body forward
-axis $b_1$ is the horizontal heading $(\cos\psi,\sin\psi,0)$ projected onto the
-rotor plane $b_3^\perp$ and normalised. The hinge rotates the camera about
-$b_2 = b_3\times b_1$, so the boresight is
-\[
-  c(b_3,\psi,\eta) = \cos\eta\; b_1 + \sin\eta\; b_3 .
-\]
-Here $\eta=0$ looks along $b_1$ (``forward''), $\eta=-\pi/2$ looks down the thrust
-axis, and $\eta = \pi/2$ looks up it.
+For a thrust axis $b_3$ and a yaw $\psi$, $b_1$ is the heading projected onto
+$b_3^\perp$ and normalised, and the boresight is $\cos\eta\,b_1+\sin\eta\,b_3$.
+This parametrisation is used for the pointing geometry. Lemma~\ref{lem:yaw-covers}
+shows that it reaches every body frame with a given thrust axis.
 \end{definition}
 
-\begin{definition}[Admissible drone trajectory]
-\label{def:drone-traj}
-\lean{VisionTracking.DroneTraj}
+\section{Drone: a rigid-body quadrotor}
+
+\begin{definition}[Quadrotor parameters]
+\label{def:quad-params}
+\lean{VisionTracking.QuadParams}
 \leanok
-\uses{def:steps, def:drone-params, def:camera-params, def:cam-axis}
-Sequences $(x_k, v_k, b_{3,k}, f_k, \psi_k, \eta_k)$ with trapezoidal stepping and
+Gravity $g$; mass $m$; principal inertias $J_x,J_y,J_z$; arm length $L$; maximum
+thrust per motor $f_{\mathrm{motor}}$ with $mg<4f_{\mathrm{motor}}$; yaw reaction
+coefficient $k$; quadratic drag coefficient $c_D>0$; tilt envelope
+$\theta_{\max}<\pi/2$; body-rate limit $\omega_{\max}$; and the speed envelope on
+which the drag model is used.
+\end{definition}
+
+\begin{definition}[Motor mixing, ``+'' layout]
+\label{def:mixing}
+\lean{VisionTracking.totalThrust, VisionTracking.QuadParams.torque}
+\leanok
+Motors $0,1,2,3$ sit on $+b_1,+b_2,-b_1,-b_2$. The collective thrust is
+$F=\sum_i f_i$ and the body torque is
+$\tau=\bigl(L(f_1-f_3),\ L(f_2-f_0),\ k(f_0-f_1+f_2-f_3)\bigr)$.
+\end{definition}
+
+\begin{definition}[Cross product, Rodrigues rotation, inertia]
+\label{def:rotate}
+\lean{VisionTracking.cross, VisionTracking.rotate, VisionTracking.worldRate,
+  VisionTracking.QuadParams.inertia, VisionTracking.QuadParams.inertiaInv,
+  VisionTracking.frameCam}
+\leanok
+$\mathrm{rotate}(\omega)$ turns vectors by the angle $\theta=\norm{\omega}$ about
+$\hat\omega$:
+$v\mapsto\cos\theta\,v+\sin\theta\,(\hat\omega\times v)+(1-\cos\theta)\inner{\hat\omega}{v}\hat\omega$.
+The camera boresight in the body frame is $\cos\eta\,b_1+\sin\eta\,b_3$.
+\end{definition}
+
+\begin{definition}[Admissible quadrotor trajectory]
+\label{def:quad-traj}
+\lean{VisionTracking.QuadTraj, VisionTracking.QuadTraj.cam}
+\leanok
+\uses{def:steps, def:quad-params, def:mixing, def:rotate, def:camera-params}
+The state is position $x$, velocity $v$, a right-handed orthonormal body frame
+$(b_1,b_2,b_3=b_1\times b_2)$ (which encodes roll, pitch and yaw), body rates
+$\Omega$, motor thrusts $f_0,\dots,f_3$, and hinge angle $\eta$. It evolves by
 \[
-  v_{k+1} = v_k + \delta\bigl(f_k b_{3,k} - g\up - c_D\norm{v_k}v_k\bigr),
+  v_{k+1}=v_k+\delta\Bigl(\tfrac{F_k}{m}b_{3,k}-g\up-c_D\norm{v_k}v_k\Bigr),\qquad
+  \Omega_{k+1}=\Omega_k+\delta J^{-1}\bigl(\tau_k-\Omega_k\times J\Omega_k\bigr),
 \]
-subject to $\norm{v_k}\le v_D$, $\norm{b_{3,k}}=1$, $0\le f_k\le f_{\max}$,
-$\ang(b_{3,k},\up)\le\theta_{\max}$, $\ang(b_{3,k+1},b_{3,k})\le\delta\omega_\theta$,
-$|\psi_{k+1}-\psi_k|\le\delta\omega_\psi$,
-$\eta_k\in[\eta_{\mathrm{lo}},\eta_{\mathrm{hi}}]$ and
-$|\eta_{k+1}-\eta_k|\le\delta\omega_\eta$.
+and each $b_i$ is advanced by $\mathrm{rotate}(\delta\,\omega_k)$, where $\omega_k$
+is the world-frame angular velocity. Constraints: $0\le f_i\le f_{\mathrm{motor}}$,
+tilt at most $\theta_{\max}$, $\norm{\Omega}\le\omega_{\max}$, speed within the
+envelope, and the hinge range and rate.
 \end{definition}
 
 \section{Visibility and strategies}
@@ -108,41 +126,30 @@ $|\eta_{k+1}-\eta_k|\le\delta\omega_\eta$.
 \label{def:visible}
 \lean{VisionTracking.Visible, VisionTracking.KeepsInView}
 \leanok
-\uses{def:detect-range, def:drone-traj, def:target-traj}
+\uses{def:detect-range, def:quad-traj, def:target-traj}
 The target at $p$ is visible from a camera at $x$ with boresight $c$ if
-$\norm{p-x}\le\ddet(s)$ and $\ang(c, p-x)\le\alpha$. A drone trajectory
-\emph{keeps the target in view} if this holds at every frame $k$.
+$\norm{p-x}\le\ddet(s)$ and $\ang(c,p-x)\le\alpha$.
 \end{definition}
 
-\begin{remark}[Conservative choices]
-\label{rem:conservative}
-Visibility asks for the target's centre to lie inside the inscribed cone. This is
-stricter than the agreed criterion (any part of the target in the image, and
-enough pixels to keep tracking). Sufficient conditions proved against it
-therefore also hold for the looser criterion. The relaxed form, in which the
-cone grows by $\arcsin(\rho/\norm{p-x})$ for a target of bounding radius $\rho$,
-will be added before the converse bounds, so that those bounds are not weakened by
-this choice.
-\end{remark}
-
-\begin{definition}[Strategy]
+\begin{definition}[Strategies]
 \label{def:strategy}
-\lean{VisionTracking.Strategy}
+\lean{VisionTracking.Strategy, VisionTracking.PosStrategy, VisionTracking.QuadTraj.state}
 \leanok
-\uses{def:drone-traj, def:target-traj}
-A full-information strategy maps each admissible target trajectory to an
-admissible drone trajectory \emph{causally}: the drone's state at step $k$ depends
-on the target only through steps $0,\dots,k$. Strategies that use only bearings
-and apparent sizes form a subclass. Impossibility results are therefore proved
-for full-information strategies, and sufficiency results for observation-only
-ones.
+\uses{def:quad-traj, def:target-traj}
+A strategy maps target trajectories to quadrotor trajectories causally: the motor
+commands at step $k$, and so the state at step $k+1$, depend on the target only
+through steps $0,\dots,k$. A position-only strategy sees only target positions,
+which bearing plus apparent size determine for a target of known size.
 \end{definition}
 
 \begin{definition}[Maintainable]
 \label{def:maintainable}
-\lean{VisionTracking.Maintainable}
+\lean{VisionTracking.Maintainable, VisionTracking.MaintainableFullInfo,
+  VisionTracking.TargetTraj.StartsAt, VisionTracking.Maintainable.fullInfo}
 \leanok
 \uses{def:strategy, def:visible}
-Tracking is maintainable from target start $(p_0,v_0)$ if some strategy keeps
-every admissible target trajectory with that start in view at every frame.
+Tracking is maintainable from a target start $(p_0,v_0,a_0)$ if some position-only
+strategy keeps every admissible target with that start in view at every frame.
+Impossibility results are proved against full-information strategies, which makes
+them stronger.
 \end{definition}
