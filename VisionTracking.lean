@@ -15,4 +15,5 @@ import VisionTracking.RateBound
 import VisionTracking.FrameRate
 import VisionTracking.Planner
 import VisionTracking.TargetBounds
+import VisionTracking.PlanLemmas
 import VisionTracking.Plan
