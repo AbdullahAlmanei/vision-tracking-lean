@@ -86,6 +86,7 @@ structure MasterIneq (P : TargetParams) (Q : QuadParams) (C : CameraParams) (δ 
   mix_hi : Q.mass * Fhi P Q δ F / 4 + τreq P Q δ F * mixK Q ≤ Q.fMotor
   hinge_rate : C.hingeLo = C.hingeHi ∨ π / 2 * D3 P Q δ F ≤ δ * C.hingeRate
   ρ_lt : ρ P δ F < d
+  μ_le : μ P δ F d ≤ C.halfFov
   hinge_lo : C.hingeLo ≤ Θlo P Q δ F - π / 2 + C.halfFov - μ P δ F d
   hinge_hi : Θhi P Q δ F - π / 2 - C.halfFov + μ P δ F d ≤ C.hingeHi
   range : d + ρ P δ F ≤ C.detectRange P.size

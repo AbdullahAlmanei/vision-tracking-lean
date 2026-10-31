@@ -50,12 +50,47 @@ theorem norm_horiz_sub_le (x y : E3) : |‖horiz x‖ - ‖horiz y‖| ≤ ‖x 
   rw [this]; exact norm_horiz_le _
 
 theorem H2_nonneg (F : FIR) : 0 ≤ F.H2 :=
-  Finset.sum_nonneg fun i _ => by positivity
+  Finset.sum_nonneg fun _ _ => by positivity
 
-theorem H0_nonneg (F : FIR) : 0 ≤ F.H0 := Finset.sum_nonneg fun i _ => abs_nonneg _
-theorem H1_nonneg (F : FIR) : 0 ≤ F.H1 := Finset.sum_nonneg fun i _ => by positivity
+theorem clamp_lip {lo hi : ℝ} (hlh : lo ≤ hi) (x y : ℝ) :
+    |max lo (min hi x) - max lo (min hi y)| ≤ |x - y| := by
+  rcases le_total x y with hxy | hxy
+  · have h1 : max lo (min hi x) ≤ max lo (min hi y) :=
+      max_le_max le_rfl (min_le_min le_rfl hxy)
+    rw [abs_of_nonpos (by linarith), abs_of_nonpos (by linarith)]
+    have : max lo (min hi y) - max lo (min hi x) ≤ y - x := by
+      simp only [max_def, min_def]; split_ifs <;> linarith
+    linarith
+  · have h1 : max lo (min hi y) ≤ max lo (min hi x) :=
+      max_le_max le_rfl (min_le_min le_rfl hxy)
+    rw [abs_of_nonneg (by linarith), abs_of_nonneg (by linarith)]
+    simp only [max_def, min_def]; split_ifs <;> linarith
+
+theorem inertia_norm_le (Q : QuadParams) (y : E3) : ‖Q.inertia y‖ ≤ Jmax Q * ‖y‖ := by
+  have hx : Q.Jx ≤ Jmax Q := le_max_left _ _
+  have hy : Q.Jy ≤ Jmax Q := (le_max_left _ _).trans (le_max_right _ _)
+  have hz : Q.Jz ≤ Jmax Q := (le_max_right _ _).trans (le_max_right _ _)
+  have h0x := Q.Jx_pos; have h0y := Q.Jy_pos; have h0z := Q.Jz_pos
+  have hJ : 0 ≤ Jmax Q := by linarith
+  rw [← sq_le_sq₀ (norm_nonneg _) (by positivity), norm_sq_coords, mul_pow, norm_sq_coords]
+  simp only [QuadParams.inertia]
+  simp
+  have ex : (Q.Jx * y.ofLp 0) ^ 2 ≤ Jmax Q ^ 2 * (y.ofLp 0) ^ 2 := by
+    rw [mul_pow]; exact mul_le_mul_of_nonneg_right (pow_le_pow_left₀ h0x.le hx 2) (sq_nonneg _)
+  have ey : (Q.Jy * y.ofLp 1) ^ 2 ≤ Jmax Q ^ 2 * (y.ofLp 1) ^ 2 := by
+    rw [mul_pow]; exact mul_le_mul_of_nonneg_right (pow_le_pow_left₀ h0y.le hy 2) (sq_nonneg _)
+  have ez : (Q.Jz * y.ofLp 2) ^ 2 ≤ Jmax Q ^ 2 * (y.ofLp 2) ^ 2 := by
+    rw [mul_pow]; exact mul_le_mul_of_nonneg_right (pow_le_pow_left₀ h0z.le hz 2) (sq_nonneg _)
+  nlinarith
+
+theorem abs_coord_le (τ : E3) (i : Fin 3) : |τ.ofLp i| ≤ ‖τ‖ := by
+  rw [← sq_le_sq₀ (abs_nonneg _) (norm_nonneg _), sq_abs, norm_sq_coords]
+  fin_cases i <;> simp <;> nlinarith [sq_nonneg (τ.ofLp 0), sq_nonneg (τ.ofLp 1), sq_nonneg (τ.ofLp 2)]
+
+theorem H0_nonneg (F : FIR) : 0 ≤ F.H0 := Finset.sum_nonneg fun _ _ => abs_nonneg _
+theorem H1_nonneg (F : FIR) : 0 ≤ F.H1 := Finset.sum_nonneg fun _ _ => by positivity
 theorem TV_nonneg (F : FIR) : 0 ≤ F.TV :=
-  add_nonneg (abs_nonneg _) (Finset.sum_nonneg fun i _ => abs_nonneg _)
+  add_nonneg (abs_nonneg _) (Finset.sum_nonneg fun _ _ => abs_nonneg _)
 
 variable (h : MasterIneq P Q C δ F d) (hS : T.StartsAt (T.p 0) (T.v 0) a₀)
 include h hS
@@ -179,11 +214,12 @@ theorem tilt_mem (k : ℕ) :
     exact div_le_div₀ (by linarith) hh' hZ hz
 
 
+omit hS in
 theorem vP_succ (k : ℕ) : vP T a₀ F (k + 1) = vP T a₀ F k + δ • F.planAcc T a₀ k :=
   F.planVel_succ T a₀ h.δ_pos.ne' k
 
 theorem vP_step_le (k : ℕ) : ‖vP T a₀ F (k + 1) - vP T a₀ F k‖ ≤ δ * (P.Amax + εD P δ F) := by
-  rw [vP_succ T a₀ h hS, add_sub_cancel_left, norm_smul, Real.norm_of_nonneg h.δ_pos.le]
+  rw [vP_succ T a₀ h, add_sub_cancel_left, norm_smul, Real.norm_of_nonneg h.δ_pos.le]
   exact mul_le_mul_of_nonneg_left (planAcc_norm_le T a₀ h hS k) h.δ_pos.le
 
 theorem thr_step (k : ℕ) : ‖thr T a₀ Q F (k + 1) - thr T a₀ Q F k‖ ≤ dT P Q δ F := by
@@ -225,7 +261,7 @@ theorem thr_second (k : ℕ) :
     (vP_ne T a₀ h hS (k + 1))
   have hd2 : vP T a₀ F (k + 2) - 2 • vP T a₀ F (k + 1) + vP T a₀ F k
       = δ • (F.planAcc T a₀ (k + 1) - F.planAcc T a₀ k) := by
-    rw [show k + 2 = (k + 1) + 1 from rfl, vP_succ T a₀ h hS (k + 1), vP_succ T a₀ h hS k]; module
+    rw [show k + 2 = (k + 1) + 1 from rfl, vP_succ T a₀ h (k + 1), vP_succ T a₀ h k]; module
   have h3 : ‖vP T a₀ F (k + 2) - 2 • vP T a₀ F (k + 1) + vP T a₀ F k‖ ≤ δ * (F.H0 * δ * P.jerk) := by
     rw [hd2, norm_smul, Real.norm_of_nonneg h.δ_pos.le]
     exact mul_le_mul_of_nonneg_left (F.planAcc_step T a₀ h.δ_pos hS k) h.δ_pos.le
@@ -365,6 +401,7 @@ theorem b2_unit (k : ℕ) : ‖b2 T a₀ Q F k‖ = 1 := by
   exact norm_cross_of_orthonormal (b3_unit T a₀ h hS k) (b1_unit T a₀ h hS k)
     (by rw [real_inner_comm]; exact b13_orth T a₀ h hS k)
 
+omit h hS in
 theorem b12_orth (k : ℕ) : ⟪b1 T a₀ Q F k, b2 T a₀ Q F k⟫ = 0 := inner_cross_right _ _
 
 theorem cross_b12 (k : ℕ) : cross (b1 T a₀ Q F k) (b2 T a₀ Q F k) = b3 T a₀ Q F k :=
@@ -401,6 +438,246 @@ theorem b2_second (k : ℕ) :
       (b1 T a₀ Q F (k + 2) - 2 • b1 T a₀ Q F (k + 1) + b1 T a₀ Q F k)
     rw [b3_unit T a₀ h hS, one_mul] at this
     exact this.trans (b1_second T a₀ h hS k)
+
+theorem D3_nonneg : 0 ≤ D3 P Q δ F := (norm_nonneg _).trans (b3_step T a₀ h hS 0)
+theorem D1b_nonneg : 0 ≤ D1b P Q δ F := (norm_nonneg _).trans (b1_step T a₀ h hS 0)
+theorem D3'_nonneg : 0 ≤ D3' P Q δ F := (norm_nonneg _).trans (b3_second T a₀ h hS 0)
+theorem D1b'_nonneg : 0 ≤ D1b' P Q δ F := (norm_nonneg _).trans (b1_second T a₀ h hS 0)
+
+theorem frame_step (k : ℕ) :
+    ‖b1 T a₀ Q F (k + 1) - b1 T a₀ Q F k‖ ≤ D1 P Q δ F ∧
+    ‖b2 T a₀ Q F (k + 1) - b2 T a₀ Q F k‖ ≤ D1 P Q δ F ∧
+    ‖b3 T a₀ Q F (k + 1) - b3 T a₀ Q F k‖ ≤ D1 P Q δ F := by
+  have := D3_nonneg T a₀ h hS; have := D1b_nonneg T a₀ h hS
+  refine ⟨?_, ?_, ?_⟩
+  · have := b1_step T a₀ h hS k; unfold D1; linarith
+  · have := b2_step T a₀ h hS k; unfold D1; linarith
+  · have := b3_step T a₀ h hS k; unfold D1; linarith
+
+theorem frame_second (k : ℕ) :
+    ‖b1 T a₀ Q F (k + 2) - 2 • b1 T a₀ Q F (k + 1) + b1 T a₀ Q F k‖ ≤ D2 P Q δ F ∧
+    ‖b2 T a₀ Q F (k + 2) - 2 • b2 T a₀ Q F (k + 1) + b2 T a₀ Q F k‖ ≤ D2 P Q δ F := by
+  have := D3_nonneg T a₀ h hS; have := D1b_nonneg T a₀ h hS; have := D3'_nonneg T a₀ h hS
+  refine ⟨?_, ?_⟩
+  · have := b1_second T a₀ h hS k; unfold D2; nlinarith
+  · have := b2_second T a₀ h hS k; unfold D2; linarith
+
+/-- The overhead formation as a kinematic plan. -/
+noncomputable def kin : KinPlan Q C δ where
+  x k := F.planPos T a₀ (d • up) k
+  v k := vP T a₀ F k
+  b₁ := b1 T a₀ Q F
+  b₂ := b2 T a₀ Q F
+  η := eta T a₀ Q C F
+  steps := F.planPos_succ T a₀ (d • up)
+  b₁_unit := b1_unit T a₀ h hS
+  b₂_unit := b2_unit T a₀ h hS
+  b₁₂_orth := b12_orth T a₀
+  near k := by
+    have hs := frame_step T a₀ h hS k
+    have hD := h.D1_lt
+    have hD0 : 0 ≤ D1 P Q δ F := (norm_nonneg _).trans hs.1
+    have := frameTrace_ge_of_step (b1_unit T a₀ h hS k) (b2_unit T a₀ h hS k)
+      (b12_orth T a₀ k) (b1_unit T a₀ h hS (k + 1)) (b2_unit T a₀ h hS (k + 1))
+      (b12_orth T a₀ (k + 1)) (D := D1 P Q δ F)
+      (by rw [norm_sub_rev]; exact hs.1) (by rw [norm_sub_rev]; exact hs.2.1)
+      (by rw [cross_b12 T a₀ h hS, cross_b12 T a₀ h hS, norm_sub_rev]; exact hs.2.2)
+    nlinarith
+
+theorem kin_b₃ (k : ℕ) : (kin T a₀ h hS).b₃ k = b3 T a₀ Q F k := cross_b12 T a₀ h hS k
+
+theorem kin_thrust (k : ℕ) : (kin T a₀ h hS).thrust k = thr T a₀ Q F k := by
+  simp only [KinPlan.thrust, kin]
+  rw [vP_succ T a₀ h, add_sub_cancel_left, smul_smul, inv_mul_cancel₀ h.δ_pos.ne', one_smul]
+  rfl
+
+theorem kin_hdir (k : ℕ) :
+    (kin T a₀ h hS).thrust k = ‖(kin T a₀ h hS).thrust k‖ • (kin T a₀ h hS).b₃ k := by
+  rw [kin_thrust, kin_b₃, b3, nrm, smul_smul, mul_inv_cancel₀
+    (norm_ne_zero_iff.2 (thr_ne T a₀ h hS k)), one_smul]
+
+theorem kin_hstep (k : ℕ) :
+    ‖(kin T a₀ h hS).b₁ (k + 1) - (kin T a₀ h hS).b₁ k‖ ≤ D1 P Q δ F ∧
+    ‖(kin T a₀ h hS).b₂ (k + 1) - (kin T a₀ h hS).b₂ k‖ ≤ D1 P Q δ F ∧
+    ‖(kin T a₀ h hS).b₃ (k + 1) - (kin T a₀ h hS).b₃ k‖ ≤ D1 P Q δ F := by
+  rw [kin_b₃, kin_b₃]; exact frame_step T a₀ h hS k
+
+theorem kin_hsec (k : ℕ) :
+    ‖(kin T a₀ h hS).b₁ (k + 2) - 2 • (kin T a₀ h hS).b₁ (k + 1) + (kin T a₀ h hS).b₁ k‖
+      ≤ D2 P Q δ F ∧
+    ‖(kin T a₀ h hS).b₂ (k + 2) - 2 • (kin T a₀ h hS).b₂ (k + 1) + (kin T a₀ h hS).b₂ k‖
+      ≤ D2 P Q δ F := frame_second T a₀ h hS k
+
+theorem kin_rate_le (k : ℕ) : ‖(kin T a₀ h hS).rate k‖ ≤ Ωmax P Q δ F :=
+  KinPlan.norm_rate_le (kin T a₀ h hS) (kin_hstep T a₀ h hS) h.δ_pos h.D1_lt k
+
+theorem kin_rate_sub_le (k : ℕ) :
+    ‖(kin T a₀ h hS).rate (k + 1) - (kin T a₀ h hS).rate k‖ ≤ dΩ P Q δ F :=
+  KinPlan.norm_rate_sub_le (kin T a₀ h hS) (kin_hstep T a₀ h hS) (kin_hsec T a₀ h hS) h.δ_pos
+    h.D1_lt k
+
+theorem kin_torque_le (k : ℕ) : ‖(kin T a₀ h hS).torque k‖ ≤ τreq P Q δ F := by
+  unfold KinPlan.torque τreq
+  have hJ : 0 ≤ Jmax Q := le_trans Q.Jx_pos.le (le_max_left _ _)
+  have hδ := h.δ_pos
+  refine (norm_add_le _ _).trans (add_le_add ?_ ?_)
+  · refine (inertia_norm_le Q _).trans ?_
+    rw [norm_smul, norm_inv, Real.norm_of_nonneg hδ.le, mul_div_assoc]
+    apply mul_le_mul_of_nonneg_left _ hJ
+    rw [inv_mul_eq_div]
+    exact div_le_div_of_nonneg_right (kin_rate_sub_le T a₀ h hS k) hδ.le
+  · refine (norm_cross_le _ _).trans ?_
+    have h1 := kin_rate_le T a₀ h hS k
+    have h2 := inertia_norm_le Q ((kin T a₀ h hS).rate k)
+    have h0 := norm_nonneg ((kin T a₀ h hS).rate k)
+    calc ‖(kin T a₀ h hS).rate k‖ * ‖Q.inertia ((kin T a₀ h hS).rate k)‖
+        ≤ ‖(kin T a₀ h hS).rate k‖ * (Jmax Q * ‖(kin T a₀ h hS).rate k‖) :=
+          mul_le_mul_of_nonneg_left h2 h0
+      _ ≤ Jmax Q * Ωmax P Q δ F ^ 2 := by nlinarith [mul_le_mul h1 h1 h0 (h0.trans h1)]
+
+theorem kin_mix (k : ℕ) :
+    MixerOK Q (Q.mass * ‖(kin T a₀ h hS).thrust k‖) ((kin T a₀ h hS).torque k) := by
+  have hτ := kin_torque_le T a₀ h hS k
+  have hm := Q.mass_pos
+  have hL : 0 < 2 * Q.arm := by linarith [Q.arm_pos]
+  have hk : 0 < 4 * Q.kYaw := by linarith [Q.kYaw_pos]
+  have hT1 : Zlo P Q δ F ≤ ‖(kin T a₀ h hS).thrust k‖ := by
+    rw [kin_thrust]; exact thr_norm_ge T a₀ h hS k
+  have hT2 : ‖(kin T a₀ h hS).thrust k‖ ≤ Fhi P Q δ F := by
+    rw [kin_thrust]; exact thr_norm_le T a₀ h hS k
+  have bnd : ∀ i j : Fin 3, |((kin T a₀ h hS).torque k).ofLp i| / (2 * Q.arm)
+      + |((kin T a₀ h hS).torque k).ofLp j| / (4 * Q.kYaw) ≤ τreq P Q δ F * mixK Q := by
+    intro i j
+    have e1 := (abs_coord_le ((kin T a₀ h hS).torque k) i).trans hτ
+    have e2 := (abs_coord_le ((kin T a₀ h hS).torque k) j).trans hτ
+    unfold mixK
+    have f1 : |((kin T a₀ h hS).torque k).ofLp i| / (2 * Q.arm) ≤ τreq P Q δ F / (2 * Q.arm) :=
+      div_le_div_of_nonneg_right e1 hL.le
+    have f2 : |((kin T a₀ h hS).torque k).ofLp j| / (4 * Q.kYaw) ≤ τreq P Q δ F / (4 * Q.kYaw) :=
+      div_le_div_of_nonneg_right e2 hk.le
+    have : τreq P Q δ F * (1 / (2 * Q.arm) + 1 / (4 * Q.kYaw))
+        = τreq P Q δ F / (2 * Q.arm) + τreq P Q δ F / (4 * Q.kYaw) := by ring
+    linarith
+  have hlo := h.mix_lo
+  have hhi := h.mix_hi
+  have m1 : Q.mass * Zlo P Q δ F / 4 ≤ Q.mass * ‖(kin T a₀ h hS).thrust k‖ / 4 := by
+    have := mul_le_mul_of_nonneg_left hT1 hm.le; linarith
+  have m2 : Q.mass * ‖(kin T a₀ h hS).thrust k‖ / 4 ≤ Q.mass * Fhi P Q δ F / 4 := by
+    have := mul_le_mul_of_nonneg_left hT2 hm.le; linarith
+  have b02 := bnd 0 2
+  have b12 := bnd 1 2
+  refine ⟨by linarith, by linarith, by linarith, by linarith⟩
+
+theorem kin_tilt (k : ℕ) : angle ((kin T a₀ h hS).b₃ k) up ≤ Q.tiltMax := by
+  rw [kin_b₃]; exact (tilt_mem T a₀ h hS k).2.trans h.tilt
+
+theorem kin_speed (k : ℕ) : ‖(kin T a₀ h hS).v k‖ ≤ Q.speedEnv :=
+  (vP_norm_le T a₀ h hS k).trans h.speed
+
+omit h hS in
+theorem eta_mem (k : ℕ) : C.hingeLo ≤ eta T a₀ Q C F k ∧ eta T a₀ Q C F k ≤ C.hingeHi :=
+  ⟨le_max_left _ _, max_le C.hingeLo_le (min_le_left _ _)⟩
+
+theorem tilt_step (k : ℕ) :
+    |tilt T a₀ Q F (k + 1) - tilt T a₀ Q F k| ≤ π / 2 * D3 P Q δ F := by
+  have a1 := angle_le_angle_add_angle (b3 T a₀ Q F (k + 1)) (b3 T a₀ Q F k) up
+  have a2 := angle_le_angle_add_angle (b3 T a₀ Q F k) (b3 T a₀ Q F (k + 1)) up
+  rw [angle_comm (b3 T a₀ Q F k) (b3 T a₀ Q F (k + 1))] at a2
+  have hc := angle_le_chord (b3_unit T a₀ h hS (k + 1)) (b3_unit T a₀ h hS k)
+  have hs := b3_step T a₀ h hS k
+  have hpi := Real.pi_pos
+  have : π / 2 * ‖b3 T a₀ Q F (k + 1) - b3 T a₀ Q F k‖ ≤ π / 2 * D3 P Q δ F :=
+    mul_le_mul_of_nonneg_left hs (by positivity)
+  unfold tilt
+  rw [abs_le]; constructor <;> linarith
+
+theorem kin_hinge_rate (k : ℕ) :
+    |(kin T a₀ h hS).η (k + 1) - (kin T a₀ h hS).η k| ≤ δ * C.hingeRate := by
+  simp only [kin, eta]
+  rcases h.hinge_rate with heq | hr
+  · have e : ∀ x, max C.hingeLo (min C.hingeHi x) = C.hingeLo := by
+      intro x; rw [heq]; simp
+    rw [e, e, sub_self, abs_zero]; exact mul_nonneg h.δ_pos.le C.hingeRate_nonneg
+  · refine (clamp_lip C.hingeLo_le _ _).trans ?_
+    have := tilt_step T a₀ h hS k
+    rw [show tilt T a₀ Q F (k + 1) - π / 2 - (tilt T a₀ Q F k - π / 2)
+      = tilt T a₀ Q F (k + 1) - tilt T a₀ Q F k by ring]
+    linarith
+
+/-- **The overhead formation trajectory**: a valid rigid-body quadrotor trajectory. -/
+noncomputable def traj : QuadTraj Q C δ :=
+  QuadTraj.ofPlan (kin T a₀ h hS) h.δ_pos.ne' (kin_hdir T a₀ h hS) (kin_mix T a₀ h hS)
+    (kin_tilt T a₀ h hS) (fun k => (kin_rate_le T a₀ h hS k).trans h.rate) (kin_speed T a₀ h hS)
+    (fun k => (eta_mem T a₀ k).1) (fun k => (eta_mem T a₀ k).2)
+    (kin_hinge_rate T a₀ h hS)
+
+theorem traj_x (k : ℕ) : (traj T a₀ h hS).x k = F.planPos T a₀ (d • up) k := rfl
+theorem traj_cam (k : ℕ) :
+    (traj T a₀ h hS).cam k = frameCam (b1 T a₀ Q F k) (b3 T a₀ Q F k) (eta T a₀ Q C F k) := by
+  simp only [QuadTraj.cam, traj, QuadTraj.ofPlan]; rw [kin_b₃]; rfl
+
+theorem cam_angle_down (k : ℕ) :
+    angle ((traj T a₀ h hS).cam k) (-up) ≤ C.halfFov - μ P δ F d := by
+  rw [traj_cam]
+  have hb3 := b3_unit T a₀ h hS k
+  have hη := eta_mem T a₀ (Q := Q) (C := C) (F := F) k
+  have hηpi : eta T a₀ Q C F k ∈ Set.Icc (-(π / 2)) (π / 2) :=
+    ⟨by linarith [C.hingeLo_ge, hη.1], by linarith [C.hingeHi_le, hη.2]⟩
+  have hal := downhill_aligned hb3 (raw_ne T a₀ h hS k)
+  have hu : ‖-up‖ = 1 := by rw [norm_neg, norm_up']
+  unfold frameCam
+  rw [angle_eq_abs_sub_of_aligned (b1_unit T a₀ h hS k) hb3 (b13_orth T a₀ h hS k) hu hal hηpi]
+  have hel : Real.arcsin ⟪b3 T a₀ Q F k, -up⟫ = tilt T a₀ Q F k - π / 2 := by
+    have := elevation_neg_up hb3; unfold elevation at this; rw [this]; rfl
+  rw [hel]
+  have ht := tilt_mem T a₀ h hS k
+  have hlo := h.hinge_lo
+  have hhi := h.hinge_hi
+  have hμ := h.μ_le
+  have hlh := C.hingeLo_le
+  have he1 : Θlo P Q δ F - π / 2 ≤ tilt T a₀ Q F k - π / 2 := by linarith [ht.1]
+  have he2 : tilt T a₀ Q F k - π / 2 ≤ Θhi P Q δ F - π / 2 := by linarith [ht.2]
+  simp only [eta]
+  generalize tilt T a₀ Q F k - π / 2 = e0 at he1 he2 ⊢
+  rw [abs_le]
+  constructor
+  · have : min C.hingeHi e0 ≤ max C.hingeLo (min C.hingeHi e0) := le_max_right _ _
+    rcases min_choice C.hingeHi e0 with hm | hm <;> rw [hm] at this ⊢ <;> linarith
+  · rcases le_total C.hingeLo (min C.hingeHi e0) with hm | hm
+    · rw [max_eq_right hm]; linarith [min_le_right C.hingeHi e0]
+    · rw [max_eq_left hm]; linarith
+
+theorem down_angle_los (k : ℕ) :
+    angle (-up) (T.p k - (traj T a₀ h hS).x k) ≤ μ P δ F d := by
+  rw [traj_x]
+  set e := F.planPos T a₀ (d • up) k - (T.p k + d • up) with he
+  have hρ : ‖e‖ ≤ ρ P δ F := F.planPos_err T a₀ (d • up) h.δ_pos hS k
+  have hd := h.d_pos
+  have hlos : T.p k - F.planPos T a₀ (d • up) k = d • (-up) + (-e) := by rw [he]; module
+  rw [hlos, ← angle_smul_left_of_pos (-up) _ hd]
+  have hx : ‖d • (-up)‖ = d := by rw [norm_smul, norm_neg, norm_up', Real.norm_of_nonneg hd.le, mul_one]
+  have hlt : ‖-e‖ < ‖d • (-up)‖ := by rw [norm_neg, hx]; linarith [h.ρ_lt]
+  refine (angle_add_le_arcsin hlt).trans ?_
+  rw [norm_neg, hx]
+  exact Real.arcsin_le_arcsin (div_le_div_of_nonneg_right hρ hd.le)
+
+/-- **Visibility in every frame.** -/
+theorem traj_keeps : KeepsInView C P.size (traj T a₀ h hS) T := by
+  intro k
+  refine ⟨?_, ?_⟩
+  · rw [traj_x]
+    have hρ : ‖F.planPos T a₀ (d • up) k - (T.p k + d • up)‖ ≤ ρ P δ F :=
+      F.planPos_err T a₀ (d • up) h.δ_pos hS k
+    have hsplit : T.p k - F.planPos T a₀ (d • up) k
+        = -(F.planPos T a₀ (d • up) k - (T.p k + d • up)) - d • up := by module
+    rw [hsplit]
+    refine (norm_sub_le _ _).trans ?_
+    rw [norm_neg, norm_smul, norm_up', Real.norm_of_nonneg h.d_pos.le, mul_one]
+    linarith [h.range]
+  · have h1 := cam_angle_down T a₀ h hS k
+    have h2 := down_angle_los T a₀ h hS k
+    have := angle_le_angle_add_angle ((traj T a₀ h hS).cam k) (-up) (T.p k - (traj T a₀ h hS).x k)
+    linarith
 
 end Overhead
 
