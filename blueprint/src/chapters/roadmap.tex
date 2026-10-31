@@ -1,6 +1,28 @@
 \chapter{Open directions}
 \label{chap:roadmap}
 
+\begin{remark}[What the numbers say: the theorem is proved, its constants are not yet useful]
+\texttt{scripts/numbers.py} evaluates the budget exactly as defined in Lean, for the
+reference fixed-wing target and two quadrotors, with the smoothing family
+$h^{(N)}$ and frame rates up to 500\,Hz. With the constants proved so far,
+\texttt{MasterIneq} is \emph{not} satisfiable in the reference scenario. There are three
+reasons.
+\begin{enumerate}
+  \item \emph{Physics.} A single turn radius in every direction lets the target push
+        over at almost $1g$ ($A_{\max}=a_\parallel+v_{\max}^2/R\approx g$). The
+        copying quadrotor then needs vertical thrust down to $g-A_{\max}\approx0.26$\,m/s$^2$.
+  \item \emph{Constants.} Triangle-inequality planner constants ($H_0\approx17$,
+        $H_1\approx17\cdot$lag), the factor 2 in the normalisation bound, and $Z_{\mathrm{lo}}$
+        (instead of $\norm T$) in the denominators.
+  \item \emph{A design singularity.} Aligning the forward axis with straight down
+        amplifies frame motion by $1/\sin(\text{tilt})$, which is large when the copying
+        thrust is nearly vertical.
+\end{enumerate}
+The fixes are sharper Abel-type planner constants, separate vertical manoeuvre
+limits for the target, and a yaw-free camera variant (camera along $-b_3$,
+parallel-transport yaw).
+\end{remark}
+
 \begin{remark}[Smoothing family and paper numbers]
 A filter family $h^{(N)}$ with four frames of lag, $H_3=O(N^3)$ and $\mathrm{TV}=O(1/N)$
 makes the torque-versus-lag trade-off explicit: the position error grows like
