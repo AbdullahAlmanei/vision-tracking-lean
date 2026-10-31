@@ -101,6 +101,10 @@ theorem core_norm (hr : (r.ofLp 0) ^ 2 + (r.ofLp 1) ^ 2 + (r.ofLp 2) ^ 2 = 1)
   rw [norm_sq_coords, g0, g1, g2, cosTr]
   linear_combination ((s.ofLp 0)^2/4 + (s.ofLp 1)^2/4 + (s.ofLp 1)/2 + (s.ofLp 2)^2/4 + 1/4) * hr + ((r.ofLp 0)/2 + 1/2) * hs + (-(r.ofLp 0)*(s.ofLp 0)/4 - (r.ofLp 1)*(s.ofLp 1)/4 - (r.ofLp 1)/2 - (r.ofLp 2)*(s.ofLp 2)/4 - (s.ofLp 0)/2) * hrs
 
+/-- The rotation vector `(arcsin ‖σ‖ / ‖σ‖) σ` (zero at `σ = 0`): the axis-angle vector
+of a rotation of angle at most `π/2` whose `σ = ½ Σ eᵢ × cᵢ` is given. -/
+noncomputable def psiVec (σ : E3) : E3 := (Real.arcsin ‖σ‖ / ‖σ‖) • σ
+
 /-- Rodrigues with axis `σ/‖σ‖`, sine `‖σ‖` and cosine `c`, when `‖σ‖² = 1 - c²`. -/
 theorem rodr_sigma {σ x : E3} {c : ℝ} (hσ : σ ≠ 0) (hn : ‖σ‖ ^ 2 = 1 - c ^ 2)
     (hc : 1 + c ≠ 0) :
@@ -161,6 +165,64 @@ theorem core_rotate (hr : (r.ofLp 0) ^ 2 + (r.ofLp 1) ^ 2 + (r.ofLp 2) ^ 2 = 1)
     have hk : ‖ω‖⁻¹ • ω = ‖σ‖⁻¹ • σ := by
       rw [hωn, hω, smul_smul, inv_mul_cancel₀ hθpos.ne', one_smul]
     refine ⟨ω, hωn, ?_, ?_⟩
+    · rw [rotate_eq_rodr, hcos, hsin, hk, rodr_sigma hσ0 hn hc0, ← solve hex]
+    · rw [rotate_eq_rodr, hcos, hsin, hk, rodr_sigma hσ0 hn hc0, ← solve hey]
+
+theorem core_rotate_psi (hr : (r.ofLp 0) ^ 2 + (r.ofLp 1) ^ 2 + (r.ofLp 2) ^ 2 = 1)
+    (hs : (s.ofLp 0) ^ 2 + (s.ofLp 1) ^ 2 + (s.ofLp 2) ^ 2 = 1)
+    (hrs : r.ofLp 0 * s.ofLp 0 + r.ofLp 1 * s.ofLp 1 + r.ofLp 2 * s.ofLp 2 = 0)
+    (hcpos : 0 ≤ cosTr r s) :
+    ‖psiVec (sigmaVec r s)‖ = Real.arccos (cosTr r s) ∧
+      rotate (psiVec (sigmaVec r s)) ex = r ∧ rotate (psiVec (sigmaVec r s)) ey = s := by
+  have hnear : -1 < cosTr r s := by linarith
+  set σ := sigmaVec r s with hσdef
+  set c := cosTr r s with hcdef
+  have hn := core_norm hr hs hrs
+  rw [← hσdef, ← hcdef] at hn
+  have hc0 : 1 + c ≠ 0 := by linarith
+  have hcle : c ≤ 1 := by nlinarith [sq_nonneg ‖σ‖]
+  have hex := core_ex hr hs hrs
+  have hey := core_ey hr hs hrs
+  rw [← hσdef, ← hcdef] at hex hey
+  -- Solve each core identity for the target vector.
+  have solve : ∀ {t e : E3}, (1 + c) • (t - c • e - cross σ e) = ⟪σ, e⟫ • σ →
+      t = c • e + cross σ e + (⟪σ, e⟫ / (1 + c)) • σ := by
+    intro t e h
+    apply smul_right_injective E3 hc0
+    have hd : (1 + c) * (⟪σ, e⟫ / (1 + c)) = ⟪σ, e⟫ := by field_simp
+    have hdd : (1 + c) • (⟪σ, e⟫ / (1 + c)) • σ = ⟪σ, e⟫ • σ := by rw [smul_smul, hd]
+    simp only
+    rw [smul_add, smul_add, hdd]
+    linear_combination (norm := module) h
+  by_cases hσ0 : σ = 0
+  · have hc1 : c = 1 := by
+      rw [hσ0, norm_zero] at hn; nlinarith
+    have hψ0 : psiVec σ = 0 := by rw [hσ0]; simp [psiVec]
+    rw [hψ0]
+    refine ⟨by rw [norm_zero, hc1, Real.arccos_one], ?_, ?_⟩
+    · rw [rotate_zero, solve hex, hσ0, hc1, cross_zero_left]; simp
+    · rw [rotate_zero, solve hey, hσ0, hc1, cross_zero_left]; simp
+  · have hp : 0 < ‖σ‖ := norm_pos_iff.2 hσ0
+    have hc1 : c < 1 := by
+      by_contra h; have h' := not_lt.1 h; nlinarith [hcle]
+    set θ := Real.arccos c with hθ
+    have hθpos : 0 < θ := Real.arccos_pos.2 hc1
+    set ω := θ • (‖σ‖⁻¹ • σ) with hω
+    have hωn : ‖ω‖ = θ := by
+      rw [hω, norm_smul, norm_smul, norm_inv, norm_norm, inv_mul_cancel₀ hp.ne', mul_one,
+        Real.norm_of_nonneg hθpos.le]
+    have hcos : Real.cos ‖ω‖ = c := by
+      rw [hωn, hθ, Real.cos_arccos (by linarith) hcle]
+    have hsin : Real.sin ‖ω‖ = ‖σ‖ := by
+      rw [hωn, hθ, Real.sin_arccos, ← hn, Real.sqrt_sq hp.le]
+    have hk : ‖ω‖⁻¹ • ω = ‖σ‖⁻¹ • σ := by
+      rw [hωn, hω, smul_smul, inv_mul_cancel₀ hθpos.ne', one_smul]
+    have hψ : psiVec σ = ω := by
+      have hθs : θ = Real.arcsin ‖σ‖ := by
+        rw [hθ, Real.arccos_eq_arcsin hcpos, ← hn, Real.sqrt_sq hp.le]
+      rw [psiVec, hω, smul_smul, ← hθs, div_eq_mul_inv]
+    rw [hψ]
+    refine ⟨hωn, ?_, ?_⟩
     · rw [rotate_eq_rodr, hcos, hsin, hk, rodr_sigma hσ0 hn hc0, ← solve hex]
     · rw [rotate_eq_rodr, hcos, hsin, hk, rodr_sigma hσ0 hn hc0, ← solve hey]
 
