@@ -2,4 +2,5 @@ import VisionTracking.Model
 import VisionTracking.SpeedBound
 import VisionTracking.Pointing
 import VisionTracking.Overhead
+import VisionTracking.Frame
 import VisionTracking.SteadyChase

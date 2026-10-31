@@ -1,13 +1,14 @@
 import VisionTracking.Model
 
 /-!
-# Speed is a hard limit
+# Escape along a direction
 
-If the target can fly faster than the drone, tracking cannot be maintained: the
-target flies in a straight line at full speed, and its distance along that line
-grows by at least `δ (v_T − v_D)` per step whatever the drone does. This holds
-against *every* drone trajectory, not just causal strategies, so it also covers
-drones that know the target's future.
+The kinematic core of every "the target simply flies away" argument. If some
+sequence of positions advances along a unit direction `u` at no more than `V` per
+unit time, a straight-line target at speed `vMax > V` along `u` eventually leaves any
+fixed range. The physical work, showing that a quadrotor's velocity component along
+`u` really is bounded (from its thrust, tilt envelope and drag), is done separately
+for each direction (`DirectionalSpeed.lean`).
 -/
 
 open InnerProductGeometry
@@ -15,38 +16,33 @@ open scoped RealInnerProductSpace
 
 namespace VisionTracking
 
-/-- A trajectory with speed at most `vD` advances at most `k δ vD` along any unit
-direction in `k` steps. -/
-theorem inner_displacement_le {δ vD : ℝ} (hδ : 0 ≤ δ) {x v : ℕ → E3}
-    (hs : StepsWith δ x v) (hv : ∀ k, ‖v k‖ ≤ vD) {u : E3} (hu : ‖u‖ = 1) :
-    ∀ k : ℕ, ⟪x k - x 0, u⟫ ≤ k * δ * vD := by
+/-- A trajectory whose velocity component along the unit vector `u` is at most `V`
+advances at most `k δ V` along `u` in `k` steps. -/
+theorem inner_displacement_le {δ V : ℝ} (hδ : 0 ≤ δ) {x v : ℕ → E3}
+    (hs : StepsWith δ x v) {u : E3} (hv : ∀ k, ⟪v k, u⟫ ≤ V) :
+    ∀ k : ℕ, ⟪x k - x 0, u⟫ ≤ k * δ * V := by
   intro k
   induction k with
   | zero => simp
   | succ k ih =>
-    have hstep : ⟪x (k + 1) - x k, u⟫ ≤ δ * vD := by
+    have hstep : ⟪x (k + 1) - x k, u⟫ ≤ δ * V := by
       rw [hs k, add_sub_cancel_left, real_inner_smul_left]
-      have h1 : ⟪v k + v (k + 1), u⟫ ≤ ‖v k + v (k + 1)‖ := by
-        simpa [hu] using real_inner_le_norm (v k + v (k + 1)) u
-      have h2 : ‖v k + v (k + 1)‖ ≤ 2 * vD := by
-        linarith [norm_add_le (v k) (v (k + 1)), hv k, hv (k + 1)]
-      nlinarith
+      exact mul_le_mul_of_nonneg_left (hv k) hδ
     have hsplit : x (k + 1) - x 0 = (x (k + 1) - x k) + (x k - x 0) := by abel
     rw [hsplit, inner_add_left]
     push_cast
     linarith
 
-/-- The straight-line, full-speed target trajectory from `p₀` along the unit
-vector `u`. -/
+/-- The straight-line, full-speed target trajectory from `p₀` along the unit vector
+`u`, which must respect the climb limit. -/
 noncomputable def straightTarget (P : TargetParams) {δ : ℝ} (hδ : 0 ≤ δ)
-    (p₀ u : E3) (hu : ‖u‖ = 1) : TargetTraj P δ where
+    (p₀ u : E3) (hu : ‖u‖ = 1) (hclimb : |⟪u, up⟫| ≤ Real.sin P.climbMax) :
+    TargetTraj P δ where
   p k := p₀ + ((k : ℝ) * δ * P.vMax) • u
   v _ := P.vMax • u
   steps k := by
     push_cast
-    rw [← two_smul ℝ (P.vMax • u), smul_smul, smul_smul, add_assoc, ← add_smul]
-    congr 2
-    ring
+    module
   speed_ge _ := by
     rw [norm_smul, hu, Real.norm_of_nonneg (P.vMin_pos.le.trans P.vMin_le_vMax)]
     simpa using P.vMin_le_vMax
@@ -62,41 +58,43 @@ noncomputable def straightTarget (P : TargetParams) {δ : ℝ} (hδ : 0 ≤ δ)
     simp only [sub_self, inner_zero_left, zero_div, zero_smul, norm_zero]
     have := P.turnRadius_pos
     positivity
+  jerk_le _ := by
+    simp only [sub_self, norm_zero]
+    have := P.jerk_nonneg
+    positivity
+  climb_le _ := by
+    have hv := P.vMin_pos.le.trans P.vMin_le_vMax
+    rw [real_inner_smul_left, abs_mul, abs_of_nonneg hv, norm_smul, hu,
+      Real.norm_of_nonneg hv, mul_one]
+    exact mul_le_mul_of_nonneg_left hclimb hv
 
-/-- **Speed impossibility.** If the target's top speed exceeds the drone's, then
-against the straight full-speed target every drone trajectory eventually leaves
-detection range, whatever its camera does. -/
-theorem straightTarget_escapes (P : TargetParams) (D : DroneParams)
-    (C : CameraParams) {δ : ℝ} (hδ : 0 < δ) (hspeed : D.vMax < P.vMax)
-    (p₀ u : E3) (hu : ‖u‖ = 1) (d : DroneTraj D C δ) :
-    ¬ KeepsInView C P.size d (straightTarget P hδ.le p₀ u hu) := by
-  intro hkeep
-  set R := C.detectRange P.size
-  obtain ⟨k, hk⟩ := exists_nat_gt ((R - ⟪p₀ - d.x 0, u⟫) / (δ * (P.vMax - D.vMax)))
-  have hgap : 0 < δ * (P.vMax - D.vMax) := mul_pos hδ (by linarith)
-  have hk' : R - ⟪p₀ - d.x 0, u⟫ < k * (δ * (P.vMax - D.vMax)) :=
-    (div_lt_iff₀ hgap).1 hk
-  have hdisp := inner_displacement_le hδ.le d.steps d.speed_le hu k
-  have hfar : R < ⟪(straightTarget P hδ.le p₀ u hu).p k - d.x k, u⟫ := by
-    have hexp : (straightTarget P hδ.le p₀ u hu).p k - d.x k
-        = (p₀ - d.x 0) + ((k : ℝ) * δ * P.vMax) • u - (d.x k - d.x 0) := by
+theorem straightTarget_startsAt (P : TargetParams) {δ : ℝ} (hδ : 0 ≤ δ) (p₀ u : E3)
+    (hu : ‖u‖ = 1) (hclimb : |⟪u, up⟫| ≤ Real.sin P.climbMax) :
+    (straightTarget P hδ p₀ u hu hclimb).StartsAt p₀ (P.vMax • u) 0 := by
+  refine ⟨by simp [straightTarget], rfl, by simp [straightTarget]⟩
+
+/-- **Escape.** If a position sequence's velocity component along `u` stays at most
+`V < vMax`, the straight full-speed target along `u` is eventually beyond any range
+`R` from it. -/
+theorem straightTarget_escapes (P : TargetParams) {δ : ℝ} (hδ : 0 < δ) (p₀ u : E3)
+    (hu : ‖u‖ = 1) (hclimb : |⟪u, up⟫| ≤ Real.sin P.climbMax) {x v : ℕ → E3}
+    (hs : StepsWith δ x v) {V : ℝ} (hv : ∀ k, ⟪v k, u⟫ ≤ V) (hV : V < P.vMax) (R : ℝ) :
+    ∃ k, R < ‖(straightTarget P hδ.le p₀ u hu hclimb).p k - x k‖ := by
+  obtain ⟨k, hk⟩ := exists_nat_gt ((R - ⟪p₀ - x 0, u⟫) / (δ * (P.vMax - V)))
+  have hgap : 0 < δ * (P.vMax - V) := mul_pos hδ (by linarith)
+  have hk' : R - ⟪p₀ - x 0, u⟫ < k * (δ * (P.vMax - V)) := (div_lt_iff₀ hgap).1 hk
+  have hdisp := inner_displacement_le hδ.le hs hv k
+  refine ⟨k, ?_⟩
+  have hfar : R < ⟪(straightTarget P hδ.le p₀ u hu hclimb).p k - x k, u⟫ := by
+    have hexp : (straightTarget P hδ.le p₀ u hu hclimb).p k - x k
+        = (p₀ - x 0) + ((k : ℝ) * δ * P.vMax) • u - (x k - x 0) := by
       simp only [straightTarget]; abel
     rw [hexp, inner_sub_left, inner_add_left, real_inner_smul_left,
       real_inner_self_eq_norm_sq, hu]
     nlinarith
-  have hle : ⟪(straightTarget P hδ.le p₀ u hu).p k - d.x k, u⟫
-      ≤ ‖(straightTarget P hδ.le p₀ u hu).p k - d.x k‖ := by
+  have hle : ⟪(straightTarget P hδ.le p₀ u hu hclimb).p k - x k, u⟫
+      ≤ ‖(straightTarget P hδ.le p₀ u hu hclimb).p k - x k‖ := by
     simpa [hu] using real_inner_le_norm _ u
-  exact absurd (hkeep k).1 (not_le.2 (hfar.trans_le hle))
-
-/-- **Corollary.** If `D.vMax < P.vMax`, tracking is not maintainable from any
-start position (the target starts at full speed in any direction). -/
-theorem not_maintainable_of_slower (P : TargetParams) (D : DroneParams)
-    (C : CameraParams) {δ : ℝ} (hδ : 0 < δ) (hspeed : D.vMax < P.vMax)
-    (p₀ u : E3) (hu : ‖u‖ = 1) :
-    ¬ Maintainable P D C δ p₀ (P.vMax • u) := by
-  rintro ⟨σ, hσ⟩
-  exact straightTarget_escapes P D C hδ hspeed p₀ u hu (σ.play _)
-    (hσ (straightTarget P hδ.le p₀ u hu) (by simp [straightTarget]) rfl)
+  exact hfar.trans_le hle
 
 end VisionTracking
