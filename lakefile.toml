@@ -1,0 +1,19 @@
+name = "vision-tracking-lean"
+version = "0.1.0"
+defaultTargets = ["VisionTracking"]
+
+[[lean_lib]]
+name = "VisionTracking"
+
+[[require]]
+name = "checkdecls"
+git = "https://github.com/PatrickMassot/checkdecls.git"
+
+[[require]]
+name = "«doc-gen4»"
+git = "https://github.com/leanprover/doc-gen4"
+rev = "main"
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4"

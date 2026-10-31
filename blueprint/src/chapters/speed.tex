@@ -1,0 +1,67 @@
+\chapter{Speed is a hard limit}
+\label{chap:speed}
+
+\begin{lemma}[Bounded advance]
+\label{lem:inner-displacement}
+\lean{VisionTracking.inner_displacement_le}
+\leanok
+\uses{def:steps}
+If $x,v$ step with period $\delta\ge0$ and $\norm{v_k}\le\vD$ for all $k$, then for
+every unit vector $u$, $\inner{x_k-x_0}{u}\le k\delta\vD$.
+\end{lemma}
+
+\begin{proof}
+\leanok
+Each step advances by
+$\tfrac{\delta}{2}\inner{v_k+v_{k+1}}{u}\le\tfrac{\delta}{2}(\norm{v_k}+\norm{v_{k+1}})\le\delta\vD$.
+Sum over the steps.
+\end{proof}
+
+\begin{definition}[Straight-line target]
+\label{def:straight-target}
+\lean{VisionTracking.straightTarget}
+\leanok
+\uses{def:target-traj}
+$p_k = p_0 + k\delta v_{\max}u$ and $v_k = v_{\max}u$ for a unit vector $u$.
+It is admissible: its speed is $v_{\max}$ and its velocity never changes.
+\end{definition}
+
+\begin{theorem}[Speed impossibility]
+\label{thm:speed}
+\lean{VisionTracking.straightTarget_escapes}
+\leanok
+\uses{lem:inner-displacement, def:straight-target, def:visible}
+If $\vD < v_{\max}$, then for every unit $u$ and every admissible drone trajectory,
+whatever its camera does, the straight-line target is out of detection range at
+some frame.
+\end{theorem}
+
+\begin{proof}
+\leanok
+By Lemma~\ref{lem:inner-displacement},
+$\inner{p_k-x_k}{u}\ge\inner{p_0-x_0}{u}+k\delta(v_{\max}-\vD)$, which eventually
+exceeds $\ddet(s)$. And $\norm{p_k-x_k}\ge\inner{p_k-x_k}{u}$.
+\end{proof}
+
+\begin{corollary}
+\label{cor:speed}
+\lean{VisionTracking.not_maintainable_of_slower}
+\leanok
+\uses{thm:speed, def:maintainable}
+If $\vD < v_{\max}$, tracking is not maintainable from any start position against
+a target starting at full speed.
+\end{corollary}
+
+\begin{proof}
+\leanok
+The trajectory a strategy produces against the straight-line target is an
+admissible drone trajectory; apply Theorem~\ref{thm:speed}.
+\end{proof}
+
+\begin{remark}
+The argument does not use causality, so it also defeats a drone that knows the
+target's future. In the reference scenario it requires a drone capable of at
+least $51.4$\,m/s. The drag-limited top speed is
+$\sqrt{\sqrt{f_{\max}^2-g^2}/c_D}$ in level flight, so this is a genuine
+constraint on thrust and drag, not just on the speed cap.
+\end{remark}

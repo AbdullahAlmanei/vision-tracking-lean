@@ -1,0 +1,148 @@
+\chapter{The model}
+\label{chap:model}
+
+Space is $\R^3$ with $\up$ pointing up; $\ang(a,b)\in[0,\pi]$ is the unoriented
+angle between vectors. Time is discrete with period $\delta>0$, which is both the
+control period and the camera frame period. Visibility is required at frame
+instants.
+
+\begin{definition}[Trapezoidal stepping]
+\label{def:steps}
+\lean{VisionTracking.StepsWith}
+\leanok
+Position and velocity sequences $x,v:\N\to\R^3$ step with period $\delta$ if
+$x_{k+1} = x_k + \tfrac{\delta}{2}(v_k + v_{k+1})$ for all $k$. This is exact for
+an acceleration held constant over each step.
+\end{definition}
+
+\section{Target}
+
+\begin{definition}[Target parameters]
+\label{def:target-params}
+\lean{VisionTracking.TargetParams}
+\leanok
+Speed band $0 < v_{\min} \le v_{\max}$, minimum turn radius $R>0$, maximum
+along-track acceleration $a_\parallel \ge 0$, and detection size $s>0$.
+\end{definition}
+
+\begin{definition}[Admissible target trajectory]
+\label{def:target-traj}
+\lean{VisionTracking.TargetTraj}
+\leanok
+\uses{def:steps, def:target-params}
+Sequences $(p_k, v_k)$ that step with period $\delta$ and satisfy
+$v_{\min}\le\norm{v_k}\le v_{\max}$. The velocity increment
+$\Delta_k = v_{k+1}-v_k$ splits into a part along $v_k$, of size at most
+$\delta a_\parallel$, and a part normal to it, of size at most
+$\delta\norm{v_k}^2/R$. The normal bound is a curvature limit that applies in
+every direction, so climbs and dives obey the same turn radius as level turns.
+Velocity never jumps.
+\end{definition}
+
+\section{Drone}
+
+\begin{definition}[Drone parameters]
+\label{def:drone-params}
+\lean{VisionTracking.DroneParams}
+\leanok
+Gravity $g>0$; maximum thrust per unit mass $f_{\max}>g$; quadratic drag
+coefficient $c_D\ge0$; speed cap $v_D>0$; maximum tilt
+$\theta_{\max}\in(0,\pi/2)$; tilt rate $\omega_\theta>0$; yaw rate
+$\omega_\psi>0$.
+\end{definition}
+
+\begin{definition}[Camera parameters]
+\label{def:camera-params}
+\lean{VisionTracking.CameraParams}
+\leanok
+Half-angle $\alpha\in(0,\pi/2)$ of the field-of-view cone inscribed in the image;
+horizontal field of view $\Phi$ spread over $W$ pixels; detection threshold of $n$
+pixels; hinge range $-\pi/2\le\eta_{\mathrm{lo}}\le\eta_{\mathrm{hi}}\le\pi/2$;
+hinge rate $\omega_\eta\ge0$. A fixed camera at mount angle $\eta_0$ is the case
+$\eta_{\mathrm{lo}}=\eta_{\mathrm{hi}}=\eta_0$.
+\end{definition}
+
+\begin{definition}[Detection range]
+\label{def:detect-range}
+\lean{VisionTracking.CameraParams.detectRange}
+\leanok
+\uses{def:camera-params}
+$\ddet(s) = s \,/\, \bigl(2\tan(n\Phi/2W)\bigr) \approx sW/(n\Phi)$: the largest
+distance at which a target of size $s$ spans $n$ pixels.
+\end{definition}
+
+\begin{definition}[Camera boresight]
+\label{def:cam-axis}
+\lean{VisionTracking.camAxis, VisionTracking.bodyForward, VisionTracking.heading}
+\leanok
+For a thrust axis $b_3$ (unit, not horizontal) and yaw $\psi$, the body forward
+axis $b_1$ is the horizontal heading $(\cos\psi,\sin\psi,0)$ projected onto the
+rotor plane $b_3^\perp$ and normalised. The hinge rotates the camera about
+$b_2 = b_3\times b_1$, so the boresight is
+\[
+  c(b_3,\psi,\eta) = \cos\eta\; b_1 + \sin\eta\; b_3 .
+\]
+Here $\eta=0$ looks along $b_1$ (``forward''), $\eta=-\pi/2$ looks down the thrust
+axis, and $\eta = \pi/2$ looks up it.
+\end{definition}
+
+\begin{definition}[Admissible drone trajectory]
+\label{def:drone-traj}
+\lean{VisionTracking.DroneTraj}
+\leanok
+\uses{def:steps, def:drone-params, def:camera-params, def:cam-axis}
+Sequences $(x_k, v_k, b_{3,k}, f_k, \psi_k, \eta_k)$ with trapezoidal stepping and
+\[
+  v_{k+1} = v_k + \delta\bigl(f_k b_{3,k} - g\up - c_D\norm{v_k}v_k\bigr),
+\]
+subject to $\norm{v_k}\le v_D$, $\norm{b_{3,k}}=1$, $0\le f_k\le f_{\max}$,
+$\ang(b_{3,k},\up)\le\theta_{\max}$, $\ang(b_{3,k+1},b_{3,k})\le\delta\omega_\theta$,
+$|\psi_{k+1}-\psi_k|\le\delta\omega_\psi$,
+$\eta_k\in[\eta_{\mathrm{lo}},\eta_{\mathrm{hi}}]$ and
+$|\eta_{k+1}-\eta_k|\le\delta\omega_\eta$.
+\end{definition}
+
+\section{Visibility and strategies}
+
+\begin{definition}[Visibility]
+\label{def:visible}
+\lean{VisionTracking.Visible, VisionTracking.KeepsInView}
+\leanok
+\uses{def:detect-range, def:drone-traj, def:target-traj}
+The target at $p$ is visible from a camera at $x$ with boresight $c$ if
+$\norm{p-x}\le\ddet(s)$ and $\ang(c, p-x)\le\alpha$. A drone trajectory
+\emph{keeps the target in view} if this holds at every frame $k$.
+\end{definition}
+
+\begin{remark}[Conservative choices]
+\label{rem:conservative}
+Visibility asks for the target's centre to lie inside the inscribed cone. This is
+stricter than the agreed criterion (any part of the target in the image, and
+enough pixels to keep tracking). Sufficient conditions proved against it
+therefore also hold for the looser criterion. The relaxed form, in which the
+cone grows by $\arcsin(\rho/\norm{p-x})$ for a target of bounding radius $\rho$,
+will be added before the converse bounds, so that those bounds are not weakened by
+this choice.
+\end{remark}
+
+\begin{definition}[Strategy]
+\label{def:strategy}
+\lean{VisionTracking.Strategy}
+\leanok
+\uses{def:drone-traj, def:target-traj}
+A full-information strategy maps each admissible target trajectory to an
+admissible drone trajectory \emph{causally}: the drone's state at step $k$ depends
+on the target only through steps $0,\dots,k$. Strategies that use only bearings
+and apparent sizes form a subclass. Impossibility results are therefore proved
+for full-information strategies, and sufficiency results for observation-only
+ones.
+\end{definition}
+
+\begin{definition}[Maintainable]
+\label{def:maintainable}
+\lean{VisionTracking.Maintainable}
+\leanok
+\uses{def:strategy, def:visible}
+Tracking is maintainable from target start $(p_0,v_0)$ if some strategy keeps
+every admissible target trajectory with that start in view at every frame.
+\end{definition}

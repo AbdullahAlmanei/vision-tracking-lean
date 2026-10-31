@@ -1,0 +1,15 @@
+.venv/
+.lake/
+build/
+blueprint/.cache/
+blueprint/web/
+blueprint/print/
+*.olean
+*.trace
+*.aux
+*.log
+*.out
+*.toc
+.DS_Store
+/.agent-shell/
+.claude/worktrees/

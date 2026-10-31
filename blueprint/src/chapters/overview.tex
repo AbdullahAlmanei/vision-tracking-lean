@@ -1,0 +1,52 @@
+\chapter{Overview}
+\label{chap:overview}
+
+A quadrotor carries a single camera on a one-axis pitch hinge and must keep an
+airborne target in view in \emph{every} camera frame. Its only measurements of
+the target are a bearing and an apparent size (a bounding box), from which range
+follows because the target's true dimensions are known.
+
+The camera is the binding constraint. A quadrotor can only accelerate by tilting
+its thrust axis, and the camera is attached to the body, so every manoeuvre the
+drone makes in order to keep up also turns the camera. On top of that, the field of
+view is a cone of fixed half-angle, the pixel budget caps the range, and every
+rotation (tilt, yaw, hinge) is rate-limited.
+
+\paragraph{Goal (P3).} One explicit \emph{master inequality} in the parameters
+\[
+  (\text{FOV},\ \text{resolution},\ \text{hinge range and rate},\ \text{tilt and
+  yaw rates},\ \text{thrust},\ \text{drag},\ \delta;\ \text{target speed band},
+  \ \text{turn radius},\ \text{size})
+\]
+that decides whether tracking can be maintained. It should be sufficient as
+stated and necessary up to an explicitly bounded gap that vanishes as the control
+period shrinks and the rate limits grow. From it we read off design rules such as
+``to hold a standoff of $d$ metres against this target you need a half-FOV of at
+least \dots'' and a map of regimes (fixed camera versus hinge, fast versus slow
+drone).
+
+\paragraph{Route.}
+\begin{enumerate}
+  \item \textbf{Model} (Chapter~\ref{chap:model}): discrete-time dynamics of target
+        and drone, the camera geometry, visibility, and strategies.
+  \item \textbf{Hard limits} (Chapter~\ref{chap:speed}): if the target is faster
+        than the drone, no strategy works. \emph{Proved.}
+  \item \textbf{Pointing reduction}: with yaw free, ``can the camera see direction
+        $u$'' collapses to one scalar, the elevation of $u$ above the rotor plane.
+  \item \textbf{Replication and formation hold}: sufficient conditions under which
+        the drone copies the target's motion at a fixed offset, with explicit lag
+        terms.
+  \item \textbf{Converse bounds}: target manoeuvres that defeat every strategy
+        outside the region of item~4.
+  \item \textbf{Master inequality} assembling items 2--5.
+\end{enumerate}
+
+\paragraph{Reference scenario.} Target: a fixed-wing aircraft of length
+$3.5$\,m, wingspan $2.5$\,m, height $0.5$\,m, cruise $40$\,m/s, top speed
+$51.4$\,m/s, minimum turn radius $350$\,m (so lateral acceleration
+$v^2/R \approx 4.6$--$7.5$\,m/s$^2$, turn rate $\le 0.15$\,rad/s), assumed stall
+speed $20$\,m/s. Detection size $s = 2.5$\,m (the smallest longer side of its
+bounding box over all viewing directions). With $1920$ pixels across a $90^\circ$
+field of view and an $8$-pixel threshold, the detection range is about $382$\,m.
+Every drone and camera quantity stays a free parameter; numbers are only for
+illustration.
