@@ -20,7 +20,7 @@ theorem cross_add_right' (a x y : E3) : cross a (x + y) = cross a x + cross a y 
   ext i; fin_cases i <;> simp [cross, crossProduct] <;> ring
 
 theorem cross_smul_right' (a x : E3) (r : ℝ) : cross a (r • x) = r • cross a x := by
-  ext i; fin_cases i <;> simp [cross, crossProduct] <;> ring
+  ext i; fin_cases i <;> simp [cross, crossProduct]
 
 theorem cross_self' (a : E3) : cross a a = 0 := by
   ext i; fin_cases i <;> simp [cross, crossProduct] <;> ring
