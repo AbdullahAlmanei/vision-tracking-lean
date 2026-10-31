@@ -24,7 +24,7 @@ quadratic drag, and a camera on a one-axis pitch hinge.
 | **Necessary side (partial)**: maintainability forces `vMax ≤ dirSpeed u` in every admissible direction; the steady-chase window in steady flight. Thrust/tilt/hinge/mixer conditions have no proved necessary counterpart yet | `Master.lean`, `DirectionalSpeed.lean`, `SteadyChase.lean` | proved |
 | Planner error terms vanish as `δ → 0` (but for a fixed filter the torque budget grows like `1/δ`) | `Master.lean` | proved |
 | **Master inequality v2 (yaw-free down camera)**: sharp planner constants, vertical manoeuvre limit, parallel-transported frame; `master_sufficient2`. Satisfiable (by `scripts/budget_v2.py`, an exact mirror of `Budget2.lean`) for targets up to 25–30 m/s with jerk ≤ 2 m/s³ | `Master2.lean`, `DownPlan.lean`, `Budget2.lean`, `PlannerSharp.lean`, `SharpNorm.lean`, `Transport.lean`, `RotPlan.lean` | proved |
-| **Caveat (v1)**: with current constants `MasterIneq` is not satisfiable for the reference target (`scripts/budget_v1.py`); needs a fixed-time-window filter family, sharper constants and a yaw-free camera variant | blueprint roadmap | open |
+| **Caveat (v1)**: with current constants `MasterIneq` is not satisfiable for the reference target (`scripts/budget_v1.py`); superseded by v2 above; the 51 m/s reference target still needs a hinged high-tilt variant | blueprint roadmap | open |
 | Steady formation iff window (explicit four-motor construction) | `SteadyFormation.lean` | proved |
 | Lifting kinematic plans to rigid-body trajectories; axis-angle; body-rate and torque bounds from frame differences | `Lifting.lean`, `AxisAngle.lean`, `FrameRate.lean`, `RateBound.lean` | proved |
 | FIR formation planner: error `H₃δ³j`, smoothness `TV·δj`, causality | `Planner.lean` | proved |

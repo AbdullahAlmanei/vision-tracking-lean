@@ -20,7 +20,7 @@ rotation (tilt, yaw, hinge) is rate-limited.
 \]
 that decides whether tracking can be maintained. It should be sufficient as
 stated and necessary up to an explicitly bounded gap that vanishes as the control
-period shrinks and the rate limits grow (a goal: the current sufficient side needs a fixed-time-window filter for this). From it we read off design rules such as
+period shrinks and the rate limits grow (a goal: for a fixed filter the torque budget grows like $1/\delta$, so the planner window must scale with the frame rate). From it we read off design rules such as
 ``to hold a standoff of $d$ metres against this target you need a half-FOV of at
 least \dots'' and a map of regimes (fixed camera versus hinge, fast versus slow
 drone).
@@ -38,7 +38,10 @@ drone).
         terms.
   \item \textbf{Converse bounds}: target manoeuvres that defeat every strategy
         outside the region of item~4.
-  \item \textbf{Master inequality} assembling items 2--5.
+  \item \textbf{Master inequality} assembling items 2--5: version 1
+        (Chapter~\ref{chap:master}) and the yaw-free version 2
+        (Chapter~\ref{chap:yawfree}), whose sufficient side is proved and numerically
+        satisfiable for moderate targets.
 \end{enumerate}
 
 \paragraph{Reference scenario.} Target: a fixed-wing aircraft of length
