@@ -9,4 +9,5 @@ import VisionTracking.Motors
 import VisionTracking.Rotation
 import VisionTracking.SteadyFormation
 import VisionTracking.AxisAngle
+import VisionTracking.Lifting
 import VisionTracking.Plan

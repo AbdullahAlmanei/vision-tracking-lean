@@ -113,6 +113,24 @@ orthonormality, certified by \texttt{linear\_combination}. For the angle bound,
 $t\ge3\cos\varepsilon$ gives $(t-1)/2\ge\cos2\varepsilon$.
 \end{proof}
 
+\begin{theorem}[Lifting kinematic plans]
+\label{thm:lifting}
+\lean{VisionTracking.QuadTraj.ofPlan, VisionTracking.KinPlan, VisionTracking.MixerOK,
+  VisionTracking.KinPlan.thrust, VisionTracking.KinPlan.rate, VisionTracking.KinPlan.torque,
+  VisionTracking.KinPlan.rotVec, VisionTracking.KinPlan.rotVec_spec,
+  VisionTracking.KinPlan.smul_worldRate_rate, VisionTracking.inertiaInv_inertia,
+  VisionTracking.ofPlan_x, VisionTracking.ofPlan_b₁, VisionTracking.ofPlan_b₃,
+  VisionTracking.ofPlan_η}
+\leanok
+\uses{lem:axis-angle, thm:motors}
+Take a plan of positions, velocities, body frames (consecutive ones within one
+rotation) and hinge angles. Suppose the required thrust
+$T_k=\Delta v_k/\delta+g\up+c_D\norm{v_k}v_k$ points along $b_3$, and the wrench
+$(m\norm{T_k},\tau_k)$ with $\tau_k=J\Delta\Omega_k/\delta+\Omega_k\times J\Omega_k$ fits
+the mixer. Suppose also that tilt, body rates, speed and hinge are within limits.
+Then the plan is a valid rigid-body trajectory.
+\end{theorem}
+
 \section{Steady formation: exact characterization}
 
 \begin{theorem}[Steady formation iff window]
