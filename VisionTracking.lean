@@ -18,4 +18,5 @@ import VisionTracking.TargetBounds
 import VisionTracking.PlanLemmas
 import VisionTracking.Budget
 import VisionTracking.OverheadPlan
+import VisionTracking.Master
 import VisionTracking.Plan

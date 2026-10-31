@@ -205,8 +205,9 @@ theorem not_maintainable_of_dirSpeed_lt (hδ : 0 < δ)
     ¬ MaintainableFullInfo P Q C δ p₀ (P.vMax • u) 0 := by
   rintro ⟨σ, hσ⟩
   set T := straightTarget P hδ.le p₀ u hu hclimb
-  have hkeep := hσ T (straightTarget_startsAt P hδ.le p₀ u hu hclimb)
-  set d := σ.play T
+  have hT := straightTarget_startsAt P hδ.le p₀ u hu hclimb
+  have hkeep := hσ T hT
+  set d := σ.play T hT
   have hc := Q.drag_pos
   have hvM : 0 < P.vMax := P.vMin_pos.trans_le P.vMin_le_vMax
   -- Pick a speed `V` strictly between the quad's limit and the target's speed.

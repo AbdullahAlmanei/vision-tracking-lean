@@ -269,41 +269,44 @@ def QuadTraj.state {Q : QuadParams} {C : CameraParams} {δ : ℝ} (d : QuadTraj 
     (j : ℕ) : E3 × E3 × E3 × E3 × E3 × E3 × ℝ :=
   (d.x j, d.v j, d.b₁ j, d.b₂ j, d.b₃ j, d.Ω j, d.η j)
 
-/-- A full-information strategy: the motor commands at step `k`, and hence the state
-at step `k + 1`, depend on the target only through steps `0, …, k`. -/
-structure Strategy (P : TargetParams) (Q : QuadParams) (C : CameraParams) (δ : ℝ) where
-  play : TargetTraj P δ → QuadTraj Q C δ
-  causal : ∀ (T T' : TargetTraj P δ) (k : ℕ),
-    (∀ j ≤ k, T.p j = T'.p j ∧ T.v j = T'.v j) →
-    (∀ j ≤ k + 1, (play T).state j = (play T').state j) ∧
-      ∀ j ≤ k, (play T).f j = (play T').f j
-
-/-- A position-only strategy: it sees the target only through its positions (which
-bearing plus apparent size of a target of known size determine). -/
-structure PosStrategy (P : TargetParams) (Q : QuadParams) (C : CameraParams) (δ : ℝ)
-    extends Strategy P Q C δ where
-  pos_causal : ∀ (T T' : TargetTraj P δ) (k : ℕ), (∀ j ≤ k, T.p j = T'.p j) →
-    (∀ j ≤ k + 1, (play T).state j = (play T').state j) ∧
-      ∀ j ≤ k, (play T).f j = (play T').f j
-
 /-- The target starts at position `p₀` with velocity `v₀` and acceleration `a₀`. -/
 def TargetTraj.StartsAt {P : TargetParams} {δ : ℝ} (T : TargetTraj P δ)
     (p₀ v₀ a₀ : E3) : Prop :=
   T.p 0 = p₀ ∧ T.v 0 = v₀ ∧ T.v 1 = v₀ + δ • a₀
 
+/-- A full-information strategy for targets with a known start `(p₀, v₀, a₀)`: the motor
+commands at step `k`, and hence the state at step `k + 1`, depend on the target only
+through steps `0, …, k`. -/
+structure Strategy (P : TargetParams) (Q : QuadParams) (C : CameraParams) (δ : ℝ)
+    (p₀ v₀ a₀ : E3) where
+  play : (T : TargetTraj P δ) → T.StartsAt p₀ v₀ a₀ → QuadTraj Q C δ
+  causal : ∀ (T T' : TargetTraj P δ) (hT : T.StartsAt p₀ v₀ a₀) (hT' : T'.StartsAt p₀ v₀ a₀)
+    (k : ℕ), (∀ j ≤ k, T.p j = T'.p j ∧ T.v j = T'.v j) →
+    (∀ j ≤ k + 1, (play T hT).state j = (play T' hT').state j) ∧
+      ∀ j ≤ k, (play T hT).f j = (play T' hT').f j
+
+/-- A position-only strategy: it sees the target only through its positions (which
+bearing plus apparent size of a target of known size determine). -/
+structure PosStrategy (P : TargetParams) (Q : QuadParams) (C : CameraParams) (δ : ℝ)
+    (p₀ v₀ a₀ : E3) extends Strategy P Q C δ p₀ v₀ a₀ where
+  pos_causal : ∀ (T T' : TargetTraj P δ) (hT : T.StartsAt p₀ v₀ a₀)
+    (hT' : T'.StartsAt p₀ v₀ a₀) (k : ℕ), (∀ j ≤ k, T.p j = T'.p j) →
+    (∀ j ≤ k + 1, (play T hT).state j = (play T' hT').state j) ∧
+      ∀ j ≤ k, (play T hT).f j = (play T' hT').f j
+
 /-- **Maintainable**: some position-only strategy keeps every admissible target with
 the given start in view in every frame. -/
 def Maintainable (P : TargetParams) (Q : QuadParams) (C : CameraParams) (δ : ℝ)
     (p₀ v₀ a₀ : E3) : Prop :=
-  ∃ σ : PosStrategy P Q C δ, ∀ T : TargetTraj P δ, T.StartsAt p₀ v₀ a₀ →
-    KeepsInView C P.size (σ.play T) T
+  ∃ σ : PosStrategy P Q C δ p₀ v₀ a₀, ∀ (T : TargetTraj P δ) (hT : T.StartsAt p₀ v₀ a₀),
+    KeepsInView C P.size (σ.play T hT) T
 
 /-- Full-information version (used for impossibility results, which are then the
 strongest form). -/
 def MaintainableFullInfo (P : TargetParams) (Q : QuadParams) (C : CameraParams) (δ : ℝ)
     (p₀ v₀ a₀ : E3) : Prop :=
-  ∃ σ : Strategy P Q C δ, ∀ T : TargetTraj P δ, T.StartsAt p₀ v₀ a₀ →
-    KeepsInView C P.size (σ.play T) T
+  ∃ σ : Strategy P Q C δ p₀ v₀ a₀, ∀ (T : TargetTraj P δ) (hT : T.StartsAt p₀ v₀ a₀),
+    KeepsInView C P.size (σ.play T hT) T
 
 theorem Maintainable.fullInfo {P : TargetParams} {Q : QuadParams} {C : CameraParams}
     {δ : ℝ} {p₀ v₀ a₀ : E3} (h : Maintainable P Q C δ p₀ v₀ a₀) :
