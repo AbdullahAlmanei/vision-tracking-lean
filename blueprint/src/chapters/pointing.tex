@@ -89,3 +89,72 @@ Lemma~\ref{lem:body-forward}. For attainment, align $b_1$ with the rotor-plane
 part of $u$ using Lemma~\ref{lem:yaw-covers}; when $u=\pm b_3$ every yaw is
 optimal. For the equivalence, take $\eta$ to be $e$ clamped to the hinge range.
 \end{proof}
+
+\section{Overhead geometry}
+
+When the drone hovers directly above the target, the line of sight is $-\up$.
+
+\begin{lemma}[Overhead elevation]
+\label{lem:overhead-elevation}
+\lean{VisionTracking.elevation_neg_up}
+\leanok
+\uses{def:elevation}
+For a unit $b_3$, $e(b_3,-\up)=\ang(b_3,\up)-\pi/2$: the elevation of ``straight
+down'' is the tilt minus a right angle.
+\end{lemma}
+
+\begin{proof}
+\leanok
+$\inner{b_3}{-\up}=-\cos t$ with $t=\ang(b_3,\up)\in[0,\pi]$, and
+$\arcsin(-\cos t)=-\arcsin\sin(\pi/2-t)=t-\pi/2$.
+\end{proof}
+
+\begin{theorem}[Overhead visibility across a tilt band]
+\label{thm:overhead-band}
+\lean{VisionTracking.overhead_visible_iff, VisionTracking.overhead_band_iff,
+  VisionTracking.TiltBand, VisionTracking.tiltVec}
+\leanok
+\uses{thm:pointing, lem:overhead-elevation}
+Let $0\le t_{\mathrm{lo}}\le t_{\mathrm{hi}}<\pi/2$. The camera, with yaw free and
+hinge in $[\eta_{\mathrm{lo}},\eta_{\mathrm{hi}}]$, can look straight down for
+\emph{every} unit thrust axis with tilt in $[t_{\mathrm{lo}},t_{\mathrm{hi}}]$ iff
+\[
+  \eta_{\mathrm{lo}}\le t_{\mathrm{lo}}-\tfrac{\pi}{2}+\alpha
+  \quad\text{and}\quad
+  \eta_{\mathrm{hi}}\ge t_{\mathrm{hi}}-\tfrac{\pi}{2}-\alpha .
+\]
+\end{theorem}
+
+\begin{proof}
+\leanok
+Sufficiency follows from Theorem~\ref{thm:pointing} and
+Lemma~\ref{lem:overhead-elevation}. For necessity, test the two extreme axes
+$\cos t\,\up+\sin t\,e_1$ with $t=t_{\mathrm{lo}}$ and $t=t_{\mathrm{hi}}$.
+\end{proof}
+
+\begin{theorem}[Fixed camera from overhead]
+\label{thm:fixed-overhead}
+\lean{VisionTracking.fixed_overhead_iff}
+\leanok
+\uses{thm:overhead-band}
+Some fixed mount angle $\eta_0\in[-\pi/2,\pi/2]$ sees straight down at every tilt in
+$[t_{\mathrm{lo}},t_{\mathrm{hi}}]$ iff $t_{\mathrm{hi}}-t_{\mathrm{lo}}\le2\alpha$.
+The mount $\eta_0=(t_{\mathrm{lo}}+t_{\mathrm{hi}})/2-\pi/2$ then works. In
+particular, a camera fixed straight down ($\eta_0=-\pi/2$) needs
+$t_{\mathrm{hi}}\le\alpha$.
+\end{theorem}
+
+\begin{proof}
+\leanok
+Apply Theorem~\ref{thm:overhead-band} with
+$\eta_{\mathrm{lo}}=\eta_{\mathrm{hi}}=\eta_0$.
+\end{proof}
+
+\begin{remark}
+In words: a hinge buys exactly the excess of the tilt band over $2\alpha$. If
+copying the target forces tilts from $10^\circ$ to $75^\circ$, a $90^\circ$
+camera ($\alpha=45^\circ$) works with no hinge at all, mounted $47.5^\circ$ below
+the body's forward axis. A $60^\circ$ camera ($\alpha=30^\circ$) needs $5^\circ$ of
+hinge travel. The open problem is the tilt band itself, which depends on drag at
+the target's speeds and on its manoeuvres (Definition~\ref{def:thrust-demand}).
+\end{remark}

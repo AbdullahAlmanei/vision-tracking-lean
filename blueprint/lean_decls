@@ -28,3 +28,9 @@ VisionTracking.exists_yaw_bodyForward_eq
 VisionTracking.abs_sub_elevation_le_angle
 VisionTracking.exists_yaw_angle_eq
 VisionTracking.exists_visible_iff
+VisionTracking.elevation_neg_up
+VisionTracking.overhead_visible_iff
+VisionTracking.overhead_band_iff
+VisionTracking.TiltBand
+VisionTracking.tiltVec
+VisionTracking.fixed_overhead_iff

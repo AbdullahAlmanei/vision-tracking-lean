@@ -18,7 +18,8 @@ roadmap.
 | Discrete-time model (`VisionTracking/Model.lean`) | defined |
 | Speed impossibility: `D.vMax < P.vMax` ⇒ not maintainable (`VisionTracking/SpeedBound.lean`) | proved, `sorry`-free |
 | Pointing reduction: camera can see `u` ⇔ rotor-plane elevation of `u` ∈ [η_lo − α, η_hi + α] (`VisionTracking/Pointing.lean`) | proved, `sorry`-free |
-| Formation hold, converse bounds, master inequality | stated in the blueprint roadmap |
+| Overhead geometry: hinge range needed for a tilt band; fixed mount works ⇔ band width ≤ 2α (`VisionTracking/Overhead.lean`) | proved, `sorry`-free |
+| Tilt band from target motion, formation hold, converse bounds, master inequality | stated in the blueprint roadmap |
 
 ## Building
 

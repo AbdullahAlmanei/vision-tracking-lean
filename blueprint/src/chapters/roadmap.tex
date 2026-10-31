@@ -26,21 +26,14 @@ $\Pi(u^*)=\sup_{(v,a)}\operatorname{dist}\bigl(e(\hat F(v,a),u^*),H\bigr)$, and
 $\Pi^*=\inf_{u^*}\Pi(u^*)$.
 \end{definition}
 
-\begin{proposition}[Overhead geometry]
-\label{prop:overhead}
-\uses{def:pointing-demand}
-For $u^*=-\up$ (the drone directly above the target),
-$e(\hat F,-\up)=\ang(\hat F,\up)-\pi/2$, so $e$ ranges over
-$[\Theta_*-\pi/2,\ \Theta^*-\pi/2]$. Consequently:
-\begin{itemize}
-  \item a hinge covering $[\Theta_*-\pi/2,\ \Theta^*-\pi/2]$ has
-        $\Pi(-\up)=0$;
-  \item a \emph{fixed} camera works from overhead if and only if
-        $\Theta^*-\Theta_*\le 2\alpha$, with the optimal mount angle
-        $\eta_0=(\Theta_*+\Theta^*)/2-\pi/2$;
-  \item a fixed camera pointing straight down needs $\Theta^*\le\alpha$.
-\end{itemize}
-\end{proposition}
+\begin{remark}[Overhead pointing demand]
+\label{rem:overhead-demand}
+\uses{def:pointing-demand, thm:overhead-band}
+For $u^*=-\up$, Theorem~\ref{thm:overhead-band} with the tilt band
+$[\Theta_*,\Theta^*]$ gives $\Pi(-\up)=0$ exactly when the hinge reaches from
+$\Theta_*-\pi/2+\alpha$ down to $\Theta^*-\pi/2-\alpha$ (or further), and
+Theorem~\ref{thm:fixed-overhead} settles the fixed-camera case.
+\end{remark}
 
 \section{Formation hold (sufficiency)}
 
