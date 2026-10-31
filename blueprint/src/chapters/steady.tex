@@ -89,6 +89,30 @@ The polynomial identities are proved by \texttt{linear\_combination} with
 Gröbner-basis certificates.
 \end{theorem}
 
+\begin{theorem}[Axis-angle for nearby frames]
+\label{lem:axis-angle}
+\lean{VisionTracking.exists_rotate_frame, VisionTracking.frameTrace, VisionTracking.rotAngle,
+  VisionTracking.frameTrace_gt_of_angle_le, VisionTracking.rotAngle_le,
+  VisionTracking.core_rotate, VisionTracking.ofF, VisionTracking.toF,
+  VisionTracking.cross_ofF, VisionTracking.ofF_toF, VisionTracking.rotate_ofF}
+\leanok
+\uses{thm:rotation}
+Two right-handed orthonormal frames whose trace $t=\sum_i\inner{a_i}{c_i}$ exceeds $-1$
+differ by a single $\mathrm{rotate}(\omega)$, with $\norm{\omega}=\arccos((t-1)/2)$. If
+every frame vector moves by at most $\varepsilon\le\pi/2$, then the angle is at most
+$2\varepsilon$.
+\end{theorem}
+
+\begin{proof}
+\leanok
+Map to the coordinates of the first frame by an isometry that preserves cross
+products. There, $\sigma=\tfrac12\sum_i e_i\times c_i$ satisfies
+$(1+\cos\theta)(c_i-\cos\theta\,e_i-\sigma\times e_i)=\inner{\sigma}{e_i}\sigma$ and
+$\norm{\sigma}^2=1-\cos^2\theta$. These are polynomial identities modulo
+orthonormality, certified by \texttt{linear\_combination}. For the angle bound,
+$t\ge3\cos\varepsilon$ gives $(t-1)/2\ge\cos2\varepsilon$.
+\end{proof}
+
 \section{Steady formation: exact characterization}
 
 \begin{theorem}[Steady formation iff window]

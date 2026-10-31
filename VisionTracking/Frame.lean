@@ -28,6 +28,21 @@ theorem inner_cross_right (a b : E3) : ⟪b, cross a b⟫ = 0 := by
   obtain ⟨h0, h1, h2⟩ := cross_apply a b
   rw [inner_eq_coords, h0, h1, h2]; ring
 
+theorem cross_zero_left (a : E3) : cross 0 a = 0 := by
+  ext i; fin_cases i <;> simp [cross, crossProduct]
+
+theorem cross_smul_left (k : ℝ) (a b : E3) : cross (k • a) b = k • cross a b := by
+  ext i; fin_cases i <;> simp [cross, crossProduct]
+
+/-- Binet–Cauchy: `⟪a × b, c × d⟫ = ⟪a, c⟫⟪b, d⟫ - ⟪a, d⟫⟪b, c⟫`. -/
+theorem inner_cross_cross (a b c d : E3) :
+    ⟪cross a b, cross c d⟫ = ⟪a, c⟫ * ⟪b, d⟫ - ⟪a, d⟫ * ⟪b, c⟫ := by
+  obtain ⟨h0, h1, h2⟩ := cross_apply a b
+  obtain ⟨k0, k1, k2⟩ := cross_apply c d
+  rw [inner_eq_coords, h0, h1, h2, k0, k1, k2, inner_eq_coords, inner_eq_coords,
+    inner_eq_coords, inner_eq_coords]
+  ring
+
 theorem norm_cross_sq (a b : E3) : ‖cross a b‖ ^ 2 = ‖a‖ ^ 2 * ‖b‖ ^ 2 - ⟪a, b⟫ ^ 2 := by
   obtain ⟨h0, h1, h2⟩ := cross_apply a b
   rw [← real_inner_self_eq_norm_sq, ← real_inner_self_eq_norm_sq, ← real_inner_self_eq_norm_sq,

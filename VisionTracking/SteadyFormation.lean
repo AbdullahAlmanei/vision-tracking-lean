@@ -88,9 +88,6 @@ theorem cross_cross_self {a b : E3} (ha : ‖a‖ = 1) (hab : ⟪a, b⟫ = 0) :
   · simp only [Fin.reduceFinMk, cross_ofLp_zero, cross_ofLp_one, cross_ofLp_two]
     linear_combination (b.ofLp 2) * ha2 - (a.ofLp 2) * hab'
 
-theorem cross_zero_left (a : E3) : cross 0 a = 0 := by
-  ext i; fin_cases i <;> simp [cross, crossProduct]
-
 /-- Given a unit `b₃` and any unit `z ⟂ b₃`, there is a unit `b₁ ⟂ b₃` aligned with the
 rotor-plane part of the unit vector `u`. -/
 theorem exists_aligned {b₃ u z : E3} (h₃ : ‖b₃‖ = 1) (hu : ‖u‖ = 1) (hz : ‖z‖ = 1)
