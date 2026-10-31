@@ -74,6 +74,8 @@ open Budget in
 structure MasterIneq (P : TargetParams) (Q : QuadParams) (C : CameraParams) (δ : ℝ)
     (F : FIR) (d : ℝ) : Prop where
   δ_pos : 0 < δ
+  /-- The step is fine enough for the Euler drag model (`Model.lean`, `speedEnv`). -/
+  fine : δ * Q.drag * Q.speedEnv ≤ 1 / 2
   d_pos : 0 < d
   εV_lt : εV P δ F < P.vMin
   Zlo_pos : 0 < Zlo P Q δ F

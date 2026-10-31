@@ -10,7 +10,7 @@ f=scratch/axcheck_tmp.lean
 { echo "import VisionTracking"; for d in "$@"; do echo "#print axioms VisionTracking.$d"; done; } > "$f"
 out=$(lake env lean "$f" 2>&1); rm -f "$f"
 echo "$out"
-if echo "$out" | grep -q 'sorryAx\|error'; then echo "AXCHECK: FAIL"; exit 1; fi
+if echo "$out" | grep -q 'sorryAx\|error:'; then echo "AXCHECK: FAIL"; exit 1; fi
 n=$(echo "$out" | grep -c "depends on axioms: \[propext, Classical.choice, Quot.sound\]" || true)
 if [ "$n" -ne "$#" ]; then echo "AXCHECK: FAIL ($n/$# clean)"; exit 1; fi
 echo "AXCHECK: PASS ($n/$#)"

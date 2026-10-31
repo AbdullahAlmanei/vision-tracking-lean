@@ -104,24 +104,38 @@ maintainable by a position-only strategy. The motor commands at step $k$ use tar
 positions up to step $k$ only.
 \end{theorem}
 
-\begin{theorem}[Necessary side]
+\begin{theorem}[Necessary side, partial]
 \label{thm:master-necessary}
-\lean{VisionTracking.master_necessary, VisionTracking.steady_necessary}
+\lean{VisionTracking.speed_necessary, VisionTracking.steady_necessary}
 \leanok
 \uses{thm:speed, thm:window}
 If tracking is maintainable even with full information, then for every admissible
 direction $u$, $v_{\max}\le\mathrm{dirSpeed}(u)$. In steady flight, the steady-chase
-window is forced.
+window is forced. These do not yet match the sufficient side: the thrust-margin,
+tilt, hinge, mixer and field-of-view conditions have no proved necessary counterpart.
 \end{theorem}
 
-\begin{theorem}[The gap vanishes with the step]
+\begin{theorem}[Planner errors vanish with the step; torque does not]
 \label{thm:gap}
-\lean{VisionTracking.gap_tendsto_zero}
+\lean{VisionTracking.planner_errors_tendsto_zero, VisionTracking.FIR.extrap456,
+  VisionTracking.FIR.extrap456_lag}
 \leanok
 \uses{thm:master-sufficient}
 For a fixed filter, $\varepsilon_D,\varepsilon_V,\rho,\varepsilon_T\to0$ as
-$\delta\to0$. So the thrust and tilt margins on the sufficient side converge to the
-copying-thrust bounds. What remains between the two sides is the geometric choice of
-the overhead formation, and the torque, rate and smoothness budgets that the
-necessary side does not see.
+$\delta\to0$. But $\tau_{\mathrm{req}}$ grows like $1/\delta$: the target's jerk is
+bounded but its snap is not, and a filter whose window $M\delta$ shrinks cannot smooth
+it. So for any fixed filter, \texttt{MasterIneq} fails at small $\delta$, and faster
+frames alone do not help. Sufficiency at small steps needs a filter family with a
+fixed time window ($M\propto1/\delta$, $\mathrm{TV}=O(1/M)$). The lag hypothesis is
+witnessed by $15p_{k-4}-24p_{k-5}+10p_{k-6}$.
 \end{theorem}
+
+\begin{remark}[Scope of the sufficient side]
+The sufficient side is proved for one strategy family: overhead copying with the
+forward axis pointed downhill. The strategy may choose the drone's initial state,
+so this is \emph{maintaining} the target, not \emph{acquiring} it. With the
+current constants the conditions are not satisfiable for realistic targets
+(Chapter~\ref{chap:roadmap}). Some of the obstructions are real limits, such as a
+dive faster than the drag-limited fall speed. Others come from the design: the
+yaw singularity of the downhill frame and the fixed filter window.
+\end{remark}

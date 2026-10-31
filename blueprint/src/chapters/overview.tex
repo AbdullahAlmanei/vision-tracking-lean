@@ -20,7 +20,7 @@ rotation (tilt, yaw, hinge) is rate-limited.
 \]
 that decides whether tracking can be maintained. It should be sufficient as
 stated and necessary up to an explicitly bounded gap that vanishes as the control
-period shrinks and the rate limits grow. From it we read off design rules such as
+period shrinks and the rate limits grow (a goal: the current sufficient side needs a fixed-time-window filter for this). From it we read off design rules such as
 ``to hold a standoff of $d$ metres against this target you need a half-FOV of at
 least \dots'' and a map of regimes (fixed camera versus hinge, fast versus slow
 drone).

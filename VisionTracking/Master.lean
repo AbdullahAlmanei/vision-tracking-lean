@@ -10,9 +10,17 @@ planner filter with four frames of lag and a standoff `d`, then tracking is
 maintainable by a position-only strategy: the overhead formation flown by a valid
 rigid-body quadrotor.
 
-**Necessity** (`master_necessary`): if tracking is maintainable even with full
-information, then the target can fly faster than the quadrotor can sustain in no
-admissible direction (directional speed limits).
+**Necessity, partial** (`speed_necessary`, `steady_necessary`): if tracking is
+maintainable even with full information, the target's top speed cannot exceed the
+quadrotor's directional speed limit, and in steady flight the steady-chase window is
+forced. These do *not* yet match the sufficient side: thrust-margin, tilt, hinge,
+mixer and field-of-view conditions have no proved necessary counterpart.
+
+**Fixed filters and the step.** For a fixed filter the planner errors vanish as
+`δ → 0` (`planner_errors_tendsto_zero`), but the torque budget `τreq` grows like
+`1/δ`: the target has bounded jerk but unbounded snap, and a filter whose time window
+`M δ` shrinks cannot smooth it. Sufficiency at small `δ` needs a filter family with a
+fixed time window (`M ∝ 1/δ`, `TV = O(1/M)`), which is not formalised yet.
 -/
 
 open InnerProductGeometry Real
@@ -134,18 +142,20 @@ theorem master_sufficient (F : FIR) (hlag : ∀ i < 4, F.h i = 0) {d : ℝ}
             pos_causal := pos }, fun T hT => ?_⟩
   exact Overhead.traj_keeps T a₀ h (hS_of T hT)
 
-/-- **Master inequality, necessary side.** -/
-theorem master_necessary (hδ : 0 < δ) (hfine : δ * Q.drag * Q.speedEnv ≤ 1 / 2) (p₀ : E3)
+/-- **Speed necessity** (the necessary side proved so far): maintainability, even with
+full information, forces `vMax ≤ dirSpeed u` for every admissible direction `u`. -/
+theorem speed_necessary (hδ : 0 < δ) (hfine : δ * Q.drag * Q.speedEnv ≤ 1 / 2) (p₀ : E3)
     {u : E3} (hu : ‖u‖ = 1) (hclimb : |⟪u, up⟫| ≤ Real.sin P.climbMax)
     (h : MaintainableFullInfo P Q C δ p₀ (P.vMax • u) 0) : P.vMax ≤ Q.dirSpeed u := by
   by_contra hlt
   exact not_maintainable_of_dirSpeed_lt hδ hfine p₀ hu hclimb (lt_of_not_ge hlt) h
 
-/-- **The gap vanishes with the step.** For a fixed planner filter, the planner and
-thrust error terms `εD = H₁ δ j`, `εV = H₂ δ² j`, `ρ = H₃ δ³ j` and `εT` tend to zero as
-`δ → 0`, so the sufficient side's thrust, tilt and range margins converge to the
-copying-thrust bounds that appear on the necessary side. -/
-theorem gap_tendsto_zero (P : TargetParams) (Q : QuadParams) (F : FIR) :
+/-- **Planner errors vanish with the step.** For a fixed planner filter, the error terms
+`εD = H₁ δ j`, `εV = H₂ δ² j`, `ρ = H₃ δ³ j` and `εT` tend to zero as `δ → 0`, so the
+thrust, tilt and range margins converge to the copying-thrust bounds. This does *not*
+make `MasterIneq` easier at small `δ`: the torque budget `τreq` grows like `1/δ` for
+a fixed filter (see the module docstring). -/
+theorem planner_errors_tendsto_zero (P : TargetParams) (Q : QuadParams) (F : FIR) :
     Filter.Tendsto (fun δ => Budget.εD P δ F) (nhds 0) (nhds 0) ∧
     Filter.Tendsto (fun δ => Budget.εV P δ F) (nhds 0) (nhds 0) ∧
     Filter.Tendsto (fun δ => Budget.ρ P δ F) (nhds 0) (nhds 0) ∧
@@ -173,5 +183,9 @@ theorem steady_necessary {d : QuadTraj Q C δ} (hδ : δ ≠ 0) (k : ℕ)
     C.hingeLo - C.halfFov ≤ chaseTilt Q ‖d.v k‖ + el ∧
       chaseTilt Q ‖d.v k‖ + el ≤ C.hingeHi + C.halfFov :=
   steady_chase_window d hδ k hsteady hhor hv hvis hr hlos hsum
+
+/-- The Euler fine-step condition is part of the master budget. -/
+theorem MasterIneq.fine_step {P : TargetParams} {Q : QuadParams} {C : CameraParams} {δ : ℝ}
+    {F : FIR} {d : ℝ} (h : MasterIneq P Q C δ F d) : δ * Q.drag * Q.speedEnv ≤ 1 / 2 := h.fine
 
 end VisionTracking

@@ -236,6 +236,8 @@ VisionTracking.master_sufficient
 VisionTracking.Overhead.traj_causal
 VisionTracking.FIR.planPos_congr_lag
 VisionTracking.motors_congr
-VisionTracking.master_necessary
+VisionTracking.speed_necessary
 VisionTracking.steady_necessary
-VisionTracking.gap_tendsto_zero
+VisionTracking.planner_errors_tendsto_zero
+VisionTracking.FIR.extrap456
+VisionTracking.FIR.extrap456_lag

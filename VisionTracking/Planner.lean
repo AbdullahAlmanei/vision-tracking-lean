@@ -401,4 +401,24 @@ noncomputable def FIR.extrap3 : FIR where
   mom1 := by simp [Finset.sum_range_succ]; norm_num
   mom2 := by simp [Finset.sum_range_succ]; norm_num
 
+/-- A four-frame-lag quadratic extrapolator `15 p_{k-4} - 24 p_{k-5} + 10 p_{k-6}`
+(Lagrange extrapolation to lag 0 from lags 4, 5, 6). It witnesses the lag hypothesis
+of `master_sufficient`. -/
+noncomputable def FIR.extrap456 : FIR where
+  h i := if i = 4 then 15 else if i = 5 then -24 else if i = 6 then 10 else 0
+  M := 6
+  h_zero := by simp
+  h_one := by simp
+  supp i hi := by
+    have : i ≠ 4 ∧ i ≠ 5 ∧ i ≠ 6 := by omega
+    simp [this.1, this.2.1, this.2.2]
+  sum_h := by simp [Finset.sum_range_succ]; norm_num
+  mom1 := by simp [Finset.sum_range_succ]; norm_num
+  mom2 := by simp [Finset.sum_range_succ]; norm_num
+
+theorem FIR.extrap456_lag : ∀ i < 4, FIR.extrap456.h i = 0 := by
+  intro i hi
+  have : i ≠ 4 ∧ i ≠ 5 ∧ i ≠ 6 := by omega
+  simp [FIR.extrap456, this.1, this.2.1, this.2.2]
+
 end VisionTracking

@@ -21,8 +21,9 @@ quadratic drag, and a camera on a one-axis pitch hinge.
 | Result | File | Status |
 |---|---|---|
 | **Master inequality, sufficient side**: under `MasterIneq` (explicit budget), a position-only strategy flying the overhead formation as a valid rigid-body quad keeps every target with the given start in view | `Master.lean`, `OverheadPlan.lean`, `Budget.lean` | proved |
-| **Master inequality, necessary side**: maintainability forces `vMax ≤ dirSpeed u` in every admissible direction; the steady-chase window in steady flight | `Master.lean`, `DirectionalSpeed.lean`, `SteadyChase.lean` | proved |
-| Gap: planner/thrust error terms vanish as `δ → 0` | `Master.lean` | proved |
+| **Necessary side (partial)**: maintainability forces `vMax ≤ dirSpeed u` in every admissible direction; the steady-chase window in steady flight. Thrust/tilt/hinge/mixer conditions have no proved necessary counterpart yet | `Master.lean`, `DirectionalSpeed.lean`, `SteadyChase.lean` | proved |
+| Planner error terms vanish as `δ → 0` (but for a fixed filter the torque budget grows like `1/δ`) | `Master.lean` | proved |
+| **Caveat**: with current constants `MasterIneq` is not satisfiable for the reference target (`scripts/numbers.py`); needs a fixed-time-window filter family, sharper constants and a yaw-free camera variant | blueprint roadmap | open |
 | Steady formation iff window (explicit four-motor construction) | `SteadyFormation.lean` | proved |
 | Lifting kinematic plans to rigid-body trajectories; axis-angle; body-rate and torque bounds from frame differences | `Lifting.lean`, `AxisAngle.lean`, `FrameRate.lean`, `RateBound.lean` | proved |
 | FIR formation planner: error `H₃δ³j`, smoothness `TV·δj`, causality | `Planner.lean` | proved |
