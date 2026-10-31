@@ -14,4 +14,5 @@ import VisionTracking.Regularity
 import VisionTracking.RateBound
 import VisionTracking.FrameRate
 import VisionTracking.Planner
+import VisionTracking.TargetBounds
 import VisionTracking.Plan
