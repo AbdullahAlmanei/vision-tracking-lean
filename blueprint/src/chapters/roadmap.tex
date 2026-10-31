@@ -1,27 +1,22 @@
-\chapter{Roadmap: manoeuvring targets}
+\chapter{Open directions}
 \label{chap:roadmap}
 
-What remains for the full master inequality is sufficiency against
-\emph{manoeuvring} targets, plus the necessity of the window for drones that do not
-fly steadily.
-
-
-\begin{remark}[Torque limits force smoothing]
-The extrapolating formation strategy holds position to $O(\delta^3j)$, but its
-thrust direction changes in jumps of $O(\delta j)$. Under bounded motor torque,
-that means unbounded angular acceleration as $\delta\to0$. A manoeuvring formation
-therefore needs a smoothing horizon $\tau$, set by the torque budget
-$L f_{\mathrm{motor}}/J$, which trades position error $O(j\tau^3)$ for feasible
-angular accelerations. Once that horizon is quantified, the master inequality
-assembles from: Theorem~\ref{thm:speed} (directional limits),
-Theorem~\ref{thm:steady-formation} (pointing in steady formation), the overhead
-tilt-band results, and a lag margin fixed by $\tau$.
+\begin{remark}[Smoothing family and paper numbers]
+A filter family $h^{(N)}$ with four frames of lag, $H_3=O(N^3)$ and $\mathrm{TV}=O(1/N)$
+makes the torque-versus-lag trade-off explicit: the position error grows like
+$j(N\delta)^3$ while the torque-relevant term shrinks like $1/N$. Evaluating the
+budget for reference quadrotors and choosing $N$ gives the paper's numbers.
 \end{remark}
 
 \begin{remark}[Weaving drones]
-Theorem~\ref{thm:window} constrains frames in which the drone holds its velocity.
-A drone faster than the target could weave. Averaging the translational dynamics
-(drag is convex) shows that its mean forward thrust is at least $c_Dv_T^2$, so the
-tilt cannot be avoided on average. Turning this into a per-frame visibility bound
-is open.
+The steady-chase window constrains frames in which the drone holds its velocity. A
+drone faster than the target could weave. Averaging the translational dynamics shows
+that its mean forward thrust is at least about $c_Dv_T^2$, so the tilt cannot be
+avoided on average. Turning this into a per-frame visibility bound is open.
+\end{remark}
+
+\begin{remark}[Heading-locked formations]
+For manoeuvring targets, only the overhead formation is proved sufficient. Holding
+an offset that rotates with the target's heading (chasing from behind) costs extra
+acceleration of order $d\omega_T^2$, and is the natural next sufficiency theorem.
 \end{remark}

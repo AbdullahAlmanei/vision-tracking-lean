@@ -20,17 +20,17 @@ quadratic drag, and a camera on a one-axis pitch hinge.
 
 | Result | File | Status |
 |---|---|---|
-| Directional speed limits from motors, tilt envelope and drag (dive limit √(g/c_D), level and climb limits); a faster target along that direction escapes every strategy | `DirectionalSpeed.lean` | proved |
-| Pointing reduction: the camera sees `u` iff the rotor-plane elevation of `u` is in `[η_lo − α, η_hi + α]`; holds in every quad state | `Pointing.lean`, `Frame.lean` | proved |
-| Overhead geometry: hinge range needed for a tilt band; a fixed mount works iff the band is at most `2α` wide | `Overhead.lean` | proved |
-| Steady flight forces the tilt `arctan(c_D v²/g)`; steady-chase window `η_lo − α ≤ θ(v) + el ≤ η_hi + α`; trackable speed depends on the altitude offset | `SteadyChase.lean` | proved |
-| Steady formation exists iff the window holds (explicit four-motor construction) | `SteadyFormation.lean` | proved |
-| Motor allocation (explicit inverse mixer); Rodrigues preserves frames and turns vectors by at most `‖ω‖` | `Motors.lean`, `Rotation.lean` | proved |
-| Axis-angle between frames | `Plan.lean` | stated, `sorry` |
-| Manoeuvring-target sufficiency (torque-limited smoothing), master inequality | blueprint roadmap | planned |
+| **Master inequality, sufficient side**: under `MasterIneq` (explicit budget), a position-only strategy flying the overhead formation as a valid rigid-body quad keeps every target with the given start in view | `Master.lean`, `OverheadPlan.lean`, `Budget.lean` | proved |
+| **Master inequality, necessary side**: maintainability forces `vMax ≤ dirSpeed u` in every admissible direction; the steady-chase window in steady flight | `Master.lean`, `DirectionalSpeed.lean`, `SteadyChase.lean` | proved |
+| Gap: planner/thrust error terms vanish as `δ → 0` | `Master.lean` | proved |
+| Steady formation iff window (explicit four-motor construction) | `SteadyFormation.lean` | proved |
+| Lifting kinematic plans to rigid-body trajectories; axis-angle; body-rate and torque bounds from frame differences | `Lifting.lean`, `AxisAngle.lean`, `FrameRate.lean`, `RateBound.lean` | proved |
+| FIR formation planner: error `H₃δ³j`, smoothness `TV·δj`, causality | `Planner.lean` | proved |
+| Pointing reduction, overhead hinge range, fixed mount | `Pointing.lean`, `Overhead.lean` | proved |
+| Smoothing family `h^(N)`, weaving-drone bound, paper numbers | — | planned |
 
-The single `sorry` is `exists_rotate_frame` in `Plan.lean`. Everything else depends
-only on `propext`, `Classical.choice` and `Quot.sound`.
+There are no `sorry`s. Every headline theorem depends only on `propext`,
+`Classical.choice` and `Quot.sound` (checked by `scripts/axcheck.sh`).
 
 ## Building
 

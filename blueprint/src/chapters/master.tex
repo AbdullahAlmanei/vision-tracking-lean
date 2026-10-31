@@ -1,0 +1,127 @@
+\chapter{The master inequality}
+\label{chap:master}
+
+\section{What copying the target costs}
+
+\begin{lemma}[Thrust demand]
+\label{lem:thrust-demand}
+\lean{VisionTracking.thrustStar, VisionTracking.Hstar, VisionTracking.TargetParams.Amax,
+  VisionTracking.horiz, VisionTracking.norm_targetAcc_le, VisionTracking.thrustStar_norm_le,
+  VisionTracking.thrustStar_up_ge, VisionTracking.thrustStar_up_le,
+  VisionTracking.thrustStar_horiz_le, VisionTracking.thrustStar_horiz_ge}
+\leanok
+\uses{def:target-traj}
+To copy the target's velocity $V$ and acceleration $A$, the drone needs specific thrust
+$T^*=A+g\up+c_D\norm{V}V$. Over all admissible target states:
+\begin{itemize}
+  \item $\norm A\le A_{\max}=a_\parallel+v_{\max}^2/R$;
+  \item $\norm{T^*}\le g+A_{\max}+c_Dv_{\max}^2$;
+  \item the vertical part lies within $g\pm(A_{\max}+c_Dv_{\max}^2\sin\gamma)$;
+  \item the horizontal part lies in $[H_*,\ A_{\max}+c_Dv_{\max}^2]$, with
+        $H_*=c_Dv_{\min}^2\cos\gamma-a_\parallel-(v_{\max}^2/R)\sin\gamma$.
+\end{itemize}
+A positive $H_*$ means the copying thrust is never vertical.
+\end{lemma}
+
+\section{The budget}
+
+\begin{definition}[Master budget]
+\label{def:budget}
+\lean{VisionTracking.Budget.εD, VisionTracking.Budget.εV, VisionTracking.Budget.ρ,
+  VisionTracking.Budget.εT, VisionTracking.Budget.Zlo, VisionTracking.Budget.Zhi,
+  VisionTracking.Budget.Fhi, VisionTracking.Budget.Hhi, VisionTracking.Budget.Hlo,
+  VisionTracking.Budget.Θhi, VisionTracking.Budget.Θlo, VisionTracking.Budget.dT,
+  VisionTracking.Budget.d2T, VisionTracking.Budget.D1, VisionTracking.Budget.D2,
+  VisionTracking.Budget.Ωmax, VisionTracking.Budget.dΩ, VisionTracking.Budget.τreq,
+  VisionTracking.Budget.mixK, VisionTracking.Budget.μ, VisionTracking.MasterIneq}
+\leanok
+\uses{lem:thrust-demand, thm:fir-bounds, thm:frame-rate, lem:regularity}
+Explicit functions of the parameters, the step $\delta$, the filter and the standoff $d$:
+\begin{itemize}
+  \item planner errors $\varepsilon_D=H_1\delta j$, $\varepsilon_V=H_2\delta^2j$,
+        $\rho=H_3\delta^3j$, and the thrust error
+        $\varepsilon_T=\varepsilon_D+c_D(2v_{\max}+\varepsilon_V)\varepsilon_V$;
+  \item thrust bounds $Z_{\mathrm{lo}},Z_{\mathrm{hi}},F_{\mathrm{hi}},H_{\mathrm{lo}},H_{\mathrm{hi}}$
+        and the tilt band $\Theta_{\mathrm{lo}}=\arctan(H_{\mathrm{lo}}/Z_{\mathrm{hi}})$,
+        $\Theta_{\mathrm{hi}}=\arctan(H_{\mathrm{hi}}/Z_{\mathrm{lo}})$;
+  \item thrust smoothness $dT,d_2T$, frame step bounds $D_1,D_2$, body-rate bounds
+        $\Omega_{\max},d\Omega$, torque $\tau_{\mathrm{req}}$ and visibility margin
+        $\mu=\arcsin(\rho/d)$.
+\end{itemize}
+\texttt{MasterIneq} requires:
+\begin{itemize}
+  \item positive thrust margins;
+  \item $\Theta_{\mathrm{hi}}\le\theta_{\max}$, $2D_1<1$, speed within the envelope, and
+        $\Omega_{\max}\le\omega_{\max}$;
+  \item the torque-augmented mixer bounds;
+  \item hinge rate (or a fixed hinge);
+  \item hinge range
+        $\eta_{\mathrm{lo}}\le\Theta_{\mathrm{lo}}-\pi/2+\alpha-\mu$ and
+        $\Theta_{\mathrm{hi}}-\pi/2-\alpha+\mu\le\eta_{\mathrm{hi}}$, with $\mu\le\alpha$;
+  \item $d+\rho\le d_{\mathrm{det}}$.
+\end{itemize}
+\end{definition}
+
+\section{The overhead formation}
+
+\begin{theorem}[A valid trajectory that keeps the target in view]
+\label{thm:overhead-traj}
+\lean{VisionTracking.Overhead.traj, VisionTracking.Overhead.traj_keeps,
+  VisionTracking.Overhead.kin, VisionTracking.Overhead.thr, VisionTracking.Overhead.b1,
+  VisionTracking.Overhead.b2, VisionTracking.Overhead.b3, VisionTracking.Overhead.eta,
+  VisionTracking.Overhead.tilt_mem, VisionTracking.Overhead.thr_err,
+  VisionTracking.Overhead.thr_step, VisionTracking.Overhead.thr_second,
+  VisionTracking.Overhead.b1_second, VisionTracking.Overhead.b2_second,
+  VisionTracking.Overhead.kin_mix, VisionTracking.Overhead.kin_torque_le,
+  VisionTracking.Overhead.kin_hinge_rate, VisionTracking.Overhead.cam_angle_down,
+  VisionTracking.Overhead.down_angle_los, VisionTracking.norm_dragMap_second_le,
+  VisionTracking.angle_add_le_arcsin, VisionTracking.angle_up_eq_arctan,
+  VisionTracking.angle_le_chord, VisionTracking.cross_second}
+\leanok
+\uses{def:budget, thm:lifting, thm:pointing}
+Under \texttt{MasterIneq}, the drone is placed as follows:
+\begin{itemize}
+  \item it flies the filtered target path offset by $d$ straight up;
+  \item its thrust axis follows the planned thrust;
+  \item its forward axis points downhill;
+  \item its hinge is clamped to the tilt minus $\pi/2$.
+\end{itemize}
+This is a valid rigid-body trajectory: four motors in range, an orthonormal frame,
+body rates and tilt within limits, and the hinge within its range and rate. It sees
+the target in every frame.
+\end{theorem}
+
+\section{The master inequality}
+
+\begin{theorem}[Sufficient side]
+\label{thm:master-sufficient}
+\lean{VisionTracking.master_sufficient, VisionTracking.Overhead.traj_causal,
+  VisionTracking.FIR.planPos_congr_lag, VisionTracking.motors_congr}
+\leanok
+\uses{thm:overhead-traj}
+If \texttt{MasterIneq} holds for a filter with four frames of lag, tracking is
+maintainable by a position-only strategy. The motor commands at step $k$ use target
+positions up to step $k$ only.
+\end{theorem}
+
+\begin{theorem}[Necessary side]
+\label{thm:master-necessary}
+\lean{VisionTracking.master_necessary, VisionTracking.steady_necessary}
+\leanok
+\uses{thm:speed, thm:window}
+If tracking is maintainable even with full information, then for every admissible
+direction $u$, $v_{\max}\le\mathrm{dirSpeed}(u)$. In steady flight, the steady-chase
+window is forced.
+\end{theorem}
+
+\begin{theorem}[The gap vanishes with the step]
+\label{thm:gap}
+\lean{VisionTracking.gap_tendsto_zero}
+\leanok
+\uses{thm:master-sufficient}
+For a fixed filter, $\varepsilon_D,\varepsilon_V,\rho,\varepsilon_T\to0$ as
+$\delta\to0$. So the thrust and tilt margins on the sufficient side converge to the
+copying-thrust bounds. What remains between the two sides is the geometric choice of
+the overhead formation, and the torque, rate and smoothness budgets that the
+necessary side does not see.
+\end{theorem}

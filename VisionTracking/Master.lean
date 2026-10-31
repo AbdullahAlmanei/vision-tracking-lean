@@ -1,5 +1,6 @@
 import VisionTracking.OverheadPlan
 import VisionTracking.DirectionalSpeed
+import VisionTracking.SteadyChase
 
 /-!
 # The master inequality
@@ -139,5 +140,38 @@ theorem master_necessary (hδ : 0 < δ) (hfine : δ * Q.drag * Q.speedEnv ≤ 1 
     (h : MaintainableFullInfo P Q C δ p₀ (P.vMax • u) 0) : P.vMax ≤ Q.dirSpeed u := by
   by_contra hlt
   exact not_maintainable_of_dirSpeed_lt hδ hfine p₀ hu hclimb (lt_of_not_ge hlt) h
+
+/-- **The gap vanishes with the step.** For a fixed planner filter, the planner and
+thrust error terms `εD = H₁ δ j`, `εV = H₂ δ² j`, `ρ = H₃ δ³ j` and `εT` tend to zero as
+`δ → 0`, so the sufficient side's thrust, tilt and range margins converge to the
+copying-thrust bounds that appear on the necessary side. -/
+theorem gap_tendsto_zero (P : TargetParams) (Q : QuadParams) (F : FIR) :
+    Filter.Tendsto (fun δ => Budget.εD P δ F) (nhds 0) (nhds 0) ∧
+    Filter.Tendsto (fun δ => Budget.εV P δ F) (nhds 0) (nhds 0) ∧
+    Filter.Tendsto (fun δ => Budget.ρ P δ F) (nhds 0) (nhds 0) ∧
+    Filter.Tendsto (fun δ => Budget.εT P Q δ F) (nhds 0) (nhds 0) := by
+  have c1 : Continuous fun δ : ℝ => Budget.εD P δ F := by unfold Budget.εD; fun_prop
+  have c2 : Continuous fun δ : ℝ => Budget.εV P δ F := by unfold Budget.εV; fun_prop
+  have c3 : Continuous fun δ : ℝ => Budget.ρ P δ F := by unfold Budget.ρ; fun_prop
+  have c4 : Continuous fun δ : ℝ => Budget.εT P Q δ F := by
+    unfold Budget.εT Budget.εD Budget.εV; fun_prop
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · simpa [Budget.εD] using c1.tendsto 0
+  · simpa [Budget.εV] using c2.tendsto 0
+  · simpa [Budget.ρ] using c3.tendsto 0
+  · simpa [Budget.εT, Budget.εD, Budget.εV] using c4.tendsto 0
+
+/-- **Steady-flight necessity** (re-export): in steady level flight at speed `v`, the
+camera sees a target ahead at elevation `el` only if
+`lo - α ≤ θ(v) + el ≤ hi + α`; against a straight level target this is also
+sufficient (`steady_formation_iff`). -/
+theorem steady_necessary {d : QuadTraj Q C δ} (hδ : δ ≠ 0) (k : ℕ)
+    (hsteady : d.v (k + 1) = d.v k) (hhor : ⟪d.v k, up⟫ = 0) (hv : d.v k ≠ 0)
+    {s : ℝ} {p : E3} (hvis : Visible C s (d.x k) (d.cam k) p) {el r : ℝ} (hr : 0 < r)
+    (hlos : p - d.x k = r • (Real.cos el • (‖d.v k‖⁻¹ • d.v k) + Real.sin el • up))
+    (hsum : |chaseTilt Q ‖d.v k‖ + el| ≤ π / 2) :
+    C.hingeLo - C.halfFov ≤ chaseTilt Q ‖d.v k‖ + el ∧
+      chaseTilt Q ‖d.v k‖ + el ≤ C.hingeHi + C.halfFov :=
+  steady_chase_window d hδ k hsteady hhor hv hvis hr hlos hsum
 
 end VisionTracking
