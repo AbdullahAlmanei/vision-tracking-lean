@@ -178,7 +178,6 @@ theorem planPos_err_sharp (k : ℕ) :
   simp only [Nat.cast_zero, sub_zero, pos_rev_step T a₀] at h1
   have h2 := sum_smul_eq_tail F.T1 (fun m : ℕ => T.velExt a₀ ((k : ℤ) - (m + 1 : ℕ))) (F.M + 1)
     F.sum_T1
-  simp only [show ∀ m : ℕ, m + 1 + 1 = (m + 1) + 1 from fun _ => rfl] at h2
   have hv2 : ∀ m : ℕ, T.velExt a₀ ((k : ℤ) - (m + 1 + 1 : ℕ)) - T.velExt a₀ ((k : ℤ) - (m + 1 : ℕ))
       = -δ • T.accExt a₀ ((k : ℤ) - (m + 1 + 1 : ℕ)) := fun m => vel_rev_step T a₀ hδ k (m + 1)
   simp only [hv2] at h2
