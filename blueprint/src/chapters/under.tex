@@ -171,6 +171,34 @@ $\Rightarrow\texttt{NecIneq3}$, where $\texttt{NecIneq3}$ requires
 $v_{\max}\le\mathrm{dirSpeed}\,u$ in every admissible direction.
 \end{theorem}
 
+\begin{theorem}[Sharp change of the body rate]
+\label{thm:rate-sharp}
+\lean{VisionTracking.KinPlan.rate_sub_eq, VisionTracking.dav_yaw_eq, VisionTracking.dav_rp_eq,
+  VisionTracking.twist_le, VisionTracking.step_prod}
+\leanok
+\uses{thm:body-rate}
+A rotation fixes its axis, so the change of body rate is exactly the change of the rotation
+vector read in the new frame. For three consecutive frames $b,c,e$, the change of $a$ is the
+second difference of the frame read in the middle frame, plus the products
+$\inner{\Delta' c_i}{\Delta' c_j}+\inner{\Delta c_i}{\Delta c_j}$ of consecutive steps.
+Each product is bounded by tilt$\times$twist plus third-order terms.
+\end{theorem}
+
+\begin{theorem}[Rotor-disc normal force: the power wall]
+\label{thm:power-wall}
+\lean{VisionTracking.QuadParams.availPower, VisionTracking.power_le_availPower,
+  VisionTracking.QuadTraj.energy_step, VisionTracking.no_traj_keeps_of_power,
+  VisionTracking.NecPower, VisionTracking.master_necessary_power,
+  VisionTracking.p3_bracket_power}
+\leanok
+\uses{thm:master3}
+With the normal force $-k_n\norm v\inner v{b_3}b_3$ and $k_n>0$, the power into the flight
+path is at most $\min(F_{\max}\norm v, F_{\max}^2/(4k_n\norm v))$. Parasitic drag takes
+$c\norm v^3$. If a line $\alpha-\beta s$ lies above the net power on the speed envelope,
+a level target with $\beta v_{\max}>\alpha+\delta B^2/2$ escapes every trajectory. So
+$\texttt{MasterIneq3}\Rightarrow$ maintainable $\Rightarrow\texttt{NecPower}$.
+\end{theorem}
+
 \begin{remark}[What does not help, and turns]
 Lag-compensating linear planners cannot reduce the torque the plan needs. With four
 frames of lag they must extrapolate, which forces a gain $\sum|h_i|\gtrsim2$, so smoothing
@@ -186,4 +214,7 @@ $64$\,m/s with $5^\circ$ dives: for jerk at most $5$ with yaw coefficient $0.03$
 $22$\,cm arm, and for jerk at most $3$ with the base quadrotor.
 The torque part of \texttt{MasterIneq3} drives the gap. It reflects the design choice of
 copying the target's acceleration exactly; it is not a physical limit.
+With the rotor-disc normal force at $k_n=0.01$, the power wall is about $58$\,m/s. The
+sufficient side reaches about $46$\,m/s at jerk $5$ on both $5^\circ$ and $10^\circ$ dives
+(tuned quadrotor), and is bound by top-motor saturation.
 \end{remark}

@@ -30,6 +30,39 @@ def suf_vmax(Q, climb_deg, jerk):
         lo, hi = (mid, hi) if ok(mid) else (lo, mid)
     return lo
 
+def avail_power(Q, s):
+    """QuadParams.availPower (PowerWall.lean)."""
+    F = 4 * Q['fMotor'] / Q['mass']
+    return 0.0 if s <= 0 else min(F * s, F * F / (4 * Q['kn'] * s))
+
+def power_vmax(Q, dt, n=4000):
+    """NecPower (PowerWall.lean): the best line alpha - beta s above availPower - c s^3 on
+    [0, speedEnv] caps vMax at (alpha + dt B^2 / 2) / beta."""
+    S = Q['speedEnv']; c = Q['drag']; F = 4 * Q['fMotor'] / Q['mass']
+    B = F + Q['kn'] * S ** 2 + Q['g'] + c * S ** 2
+    ss = [S * i / n for i in range(n + 1)]
+    hs = [avail_power(Q, x) - c * x ** 3 for x in ss]
+    best = float('inf')
+    for k in range(1, 3001):
+        beta = k * 0.1
+        alpha = max(h + beta * x for h, x in zip(hs, ss))
+        best = min(best, (alpha + dt * B * B / 2) / beta)
+    return best
+
+if __name__ == '__main__' and len(__import__('sys').argv) > 1 and __import__('sys').argv[1] == 'kn':
+    print('Rotor-disc normal force: power wall (NecPower) vs sufficient MasterIneq3, dt = 1/240')
+    for kn in [0.005, 0.01, 0.02]:
+        for qn, Q0 in {'base': BASE, 'kYaw .03, arm .22': dict(BASE, kYaw=0.03, arm=0.22)}.items():
+            Q = dict(Q0, kn=kn)
+            nec = power_vmax(Q, 1 / 240)
+            for climb in [5, 10]:
+                row = [f"k_n {kn:.3f} {qn:18s} {climb:2d} deg: necessary <= {nec:5.1f}"]
+                for J in [1, 3, 5]:
+                    s = suf_vmax(Q, climb, J)
+                    row.append(f"jerk {J}: {s:5.1f}" if s else f"jerk {J}:  none")
+                print("  " + " | ".join(row), flush=True)
+    raise SystemExit
+
 if __name__ == '__main__':
     quads = {'base': BASE, 'kYaw .03, arm .22': dict(BASE, kYaw=0.03, arm=0.22)}
     print('Largest target top speed (m/s): necessary wall vs sufficient MasterIneq3')
