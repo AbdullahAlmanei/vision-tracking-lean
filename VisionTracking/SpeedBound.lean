@@ -66,6 +66,11 @@ noncomputable def straightTarget (P : TargetParams) {δ : ℝ} (hδ : 0 ≤ δ)
     simp only [sub_self, inner_zero_left, abs_zero]
     have := P.aVert_nonneg
     positivity
+  snap_le _ := by
+    have h0 : ∀ x : E3, x - 3 • x + 3 • x - x = 0 := fun x => by module
+    rw [h0, norm_zero]
+    have := P.snap_nonneg
+    positivity
   climb_le _ := by
     have hv := P.vMin_pos.le.trans P.vMin_le_vMax
     rw [real_inner_smul_left, abs_mul, abs_of_nonneg hv, norm_smul, hu,

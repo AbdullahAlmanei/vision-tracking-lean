@@ -76,6 +76,9 @@ structure TargetParams where
   /-- Maximum vertical acceleration (pull-up / push-over), typically much smaller than
   the turning acceleration. -/
   aVert : ℝ
+  /-- Maximum snap: the jerk changes by at most `δ · snap` per step (control-surface
+  rates are limited). -/
+  snap : ℝ
   /-- Detection size: over all viewing directions, the minimum of the longer side
   of the target's projected bounding box. -/
   size : ℝ
@@ -87,6 +90,7 @@ structure TargetParams where
   climbMax_nonneg : 0 ≤ climbMax
   climbMax_lt : climbMax < Real.pi / 2
   aVert_nonneg : 0 ≤ aVert
+  snap_nonneg : 0 ≤ snap
   size_pos : 0 < size
 
 /-- An admissible target trajectory. The velocity change over one step is split
@@ -105,6 +109,7 @@ structure TargetTraj (P : TargetParams) (δ : ℝ) where
   jerk_le : ∀ k, ‖(v (k + 2) - v (k + 1)) - (v (k + 1) - v k)‖ ≤ δ ^ 2 * P.jerk
   climb_le : ∀ k, |⟪v k, up⟫| ≤ ‖v k‖ * Real.sin P.climbMax
   vert_le : ∀ k, |⟪v (k + 1) - v k, up⟫| ≤ δ * P.aVert
+  snap_le : ∀ k, ‖v (k + 3) - 3 • v (k + 2) + 3 • v (k + 1) - v k‖ ≤ δ ^ 3 * P.snap
 
 /-! ## Camera -/
 
@@ -288,6 +293,12 @@ def QuadTraj.state {Q : QuadParams} {C : CameraParams} {δ : ℝ} (d : QuadTraj 
 def TargetTraj.StartsAt {P : TargetParams} {δ : ℝ} (T : TargetTraj P δ)
     (p₀ v₀ a₀ : E3) : Prop :=
   T.p 0 = p₀ ∧ T.v 0 = v₀ ∧ T.v 1 = v₀ + δ • a₀
+
+/-- The target starts in steady flight: its acceleration is constant over the first two
+steps (zero initial jerk). -/
+def TargetTraj.StartsSteady {P : TargetParams} {δ : ℝ} (T : TargetTraj P δ)
+    (p₀ v₀ a₀ : E3) : Prop :=
+  T.StartsAt p₀ v₀ a₀ ∧ T.v 2 = T.v 1 + δ • a₀
 
 /-- A full-information strategy for targets with a known start `(p₀, v₀, a₀)`: the motor
 commands at step `k`, and hence the state at step `k + 1`, depend on the target only

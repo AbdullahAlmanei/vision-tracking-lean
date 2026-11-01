@@ -57,6 +57,11 @@ noncomputable def levelTarget (P : TargetParams) {δ : ℝ} (hδ : 0 ≤ δ) (p�
     simp only [sub_self, inner_zero_left, abs_zero]
     have := P.aVert_nonneg
     positivity
+  snap_le _ := by
+    have h0 : ∀ x : E3, x - 3 • x + 3 • x - x = 0 := fun x => by module
+    rw [h0, norm_zero]
+    have := P.snap_nonneg
+    positivity
   climb_le _ := by
     rw [real_inner_smul_left, hwu, mul_zero, abs_zero]
     exact mul_nonneg (norm_nonneg _)
