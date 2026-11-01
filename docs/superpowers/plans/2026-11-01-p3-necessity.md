@@ -173,3 +173,35 @@ agility (jerk) limits of `MasterIneq3` are a property of tight-formation designs
 physics. The chain is correct and formalizable, but it would yield a practically vacuous
 theorem here. It becomes meaningful only when the allowed slack E is a few metres (very
 narrow FOV or very short detection range).
+
+## Looser formations (2026-11-01): three designs explored, none beats the tight formation
+
+Prototypes, evaluated against the same speed-dependent budget: `scripts/explore/`.
+
+1. **Loose yaw** (`loose_yaw.py`). Same position plan; the yaw follows the lateral lock
+   through a first-order lag with gain k_ψ.
+   - Yaw torque at the binding speed does not drop: about 0.2 N·m, as with the lateral
+     lock.
+   - The bound on the change of the body-rate vector has a floor of order (rate)², about
+     2–5 rad/s² per term. It comes from bounding each piece of a rotation separately.
+   - Above about 38° pitch, yaw error costs camera field of view.
+2. **Averaged (lagged) formation** (`averaged_formation.py`). A positive smoothing kernel
+   with no lag compensation, and thrust bounded directly as an average of admissible target
+   states.
+   - For windows of 2–4 s, the target's heading turns by tens of degrees inside the window,
+     which breaks the forward and lateral thrust bounds (bank fails).
+   - 4A/τ drops below the target's jerk only for windows longer than about 4 s.
+   - The best case (0.5 s) is worse than the tight formation.
+3. **Jerk/snap-capped nonlinear tracker** (`tracker_cascade.py`, earlier).
+   - At about 35 m/s (A ≈ 5.5), caps (4, 6) keep lags near 140 m and 24 m/s, which fits
+     the slack.
+   - Combined with thrust bounds taken directly from the drone's own plan, this is the only
+     design with a plausible gain at the binding point (slow dives, low thrust).
+   - It needs an invariant-set proof for a saturated third-order tracking loop against
+     adversarial targets.
+
+**What binds is partly physics.** Following a fast dive with drag leaves low total thrust
+(about 7 m/s² at 35 m/s in a 10° dive). Torque authority scales with thrust, and the
+thrust-direction rate needed to follow lateral jerk J promptly is about J/T. The slack in
+range and field of view only helps a tracker that follows *slowly*, which design 3
+captures and designs 1–2 do not.
