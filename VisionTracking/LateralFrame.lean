@@ -609,4 +609,50 @@ theorem lat_aVec_rp_second :
 
 end Second
 
+
+/-- **Crude frame steps** (used only to show consecutive frames are close). -/
+theorem lat_steps_crude {ℓ₀ ℓ₁ n₀ n₁ : E3} {sb dn dl : ℝ}
+    (hn₀ : ‖n₀‖ = 1) (hn₁ : ‖n₁‖ = 1) (hℓ₀ : ‖ℓ₀‖ = 1) (hℓ₁ : ‖ℓ₁‖ = 1)
+    (hf₀ : |⟪ℓ₀, n₀⟫| ≤ sb) (hf₁ : |⟪ℓ₁, n₁⟫| ≤ sb) (hsb : sb < 1)
+    (hdn : ‖n₁ - n₀‖ ≤ dn) (hdl : ‖ℓ₁ - ℓ₀‖ ≤ dl) :
+    ‖lat2 ℓ₁ n₁ - lat2 ℓ₀ n₀‖ ≤ (2 * dl + 2 * dn) / √(1 - sb ^ 2) ∧
+    ‖lat1 ℓ₁ n₁ - lat1 ℓ₀ n₀‖ ≤ (2 * dl + 2 * dn) / √(1 - sb ^ 2) + dn := by
+  have hsb0 : 0 ≤ sb := (abs_nonneg _).trans hf₀
+  have hs : 0 < √(1 - sb ^ 2) := Real.sqrt_pos.2 (by nlinarith)
+  have hM : ∀ {ℓ n : E3}, ‖n‖ = 1 → ‖ℓ‖ = 1 → |⟪ℓ, n⟫| ≤ sb →
+      √(1 - sb ^ 2) ≤ ‖latRaw ℓ n‖ := by
+    intro ℓ n hn hℓ hf
+    rw [norm_latRaw hn hℓ]
+    apply Real.sqrt_le_sqrt
+    nlinarith [sq_abs ⟪ℓ, n⟫, abs_nonneg ⟪ℓ, n⟫]
+  have hraw : ‖latRaw ℓ₁ n₁ - latRaw ℓ₀ n₀‖ ≤ 2 * dl + 2 * dn := by
+    have e : latRaw ℓ₁ n₁ - latRaw ℓ₀ n₀ = -(ℓ₁ - ℓ₀) + ((⟪ℓ₁, n₁⟫ - ⟪ℓ₀, n₀⟫) • n₁
+        + ⟪ℓ₀, n₀⟫ • (n₁ - n₀)) := by simp only [latRaw]; module
+    rw [e]
+    refine (norm_add_le _ _).trans ?_
+    rw [norm_neg]
+    have t1 : ‖(⟪ℓ₁, n₁⟫ - ⟪ℓ₀, n₀⟫) • n₁‖ ≤ dl + dn := by
+      rw [norm_smul, hn₁, mul_one, Real.norm_eq_abs]
+      exact (abs_inner_sub_inner_le hℓ₀ hn₁).trans (add_le_add hdl hdn)
+    have t2 : ‖⟪ℓ₀, n₀⟫ • (n₁ - n₀)‖ ≤ dn := by
+      rw [norm_smul, Real.norm_eq_abs]
+      calc |⟪ℓ₀, n₀⟫| * ‖n₁ - n₀‖ ≤ 1 * dn :=
+            mul_le_mul (hf₀.trans hsb.le) hdn (norm_nonneg _) zero_le_one
+        _ = dn := one_mul _
+    have := norm_add_le ((⟪ℓ₁, n₁⟫ - ⟪ℓ₀, n₀⟫) • n₁) (⟪ℓ₀, n₀⟫ • (n₁ - n₀))
+    linarith
+  have h2 : ‖lat2 ℓ₁ n₁ - lat2 ℓ₀ n₀‖ ≤ (2 * dl + 2 * dn) / √(1 - sb ^ 2) :=
+    (norm_nrm_sub_le_sharp hs (hM hn₁ hℓ₁ hf₁) (hM hn₀ hℓ₀ hf₀)).trans
+      (div_le_div_of_nonneg_right hraw hs.le)
+  refine ⟨h2, ?_⟩
+  have e : lat1 ℓ₁ n₁ - lat1 ℓ₀ n₀
+      = cross (lat2 ℓ₁ n₁ - lat2 ℓ₀ n₀) n₁ + cross (lat2 ℓ₀ n₀) (n₁ - n₀) := by
+    simp only [lat1]
+    ext i; fin_cases i <;> simp [cross, crossProduct] <;> ring
+  rw [e]
+  refine (norm_add_le _ _).trans (add_le_add ?_ ?_)
+  · refine (norm_cross_le _ _).trans ?_; rw [hn₁, mul_one]; exact h2
+  · refine (norm_cross_le _ _).trans ?_
+    rw [lat2_unit hn₀ hℓ₀ (hf₀.trans_lt hsb), one_mul]; exact hdn
+
 end VisionTracking

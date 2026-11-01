@@ -33,4 +33,5 @@ import VisionTracking.LateralFrame
 import VisionTracking.Budget3
 import VisionTracking.TargetLocal
 import VisionTracking.UnderPlan
+import VisionTracking.UnderTraj
 import VisionTracking.Plan
