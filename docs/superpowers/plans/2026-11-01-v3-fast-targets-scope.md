@@ -1,4 +1,4 @@
-# Version 3 scope: targets up to 55 m/s (hinged camera, heading-locked yaw)
+# Version 3 scope: targets up to 55 m/s, approached from below (top camera, 30–70° up)
 
 Status: scope only, not yet planned task by task. Date: 2026-11-01.
 
@@ -18,52 +18,60 @@ At 55 m/s the drag the drone must cancel is c·v² ≈ 24 m/s², so the thrust a
 about 70–80° from vertical. With the camera fixed down the thrust axis, the target leaves
 the field of view once tilt + μ > α. That is a camera limit, not a thrust limit.
 
-## Design (one design for the whole speed band, no mode switching)
+## Design: camera on top, drone underneath (user's choice, 2026-11-01)
 
-- **Formation.** Unchanged: the drone flies the filtered target path offset by d straight
-  up, and the line of sight is approximately −up.
-- **Thrust axis.** b₃ = n = T/‖T‖, as in v2.
-- **Yaw locked to the lateral axis.** Let ĥ be the planned horizontal heading, nrm(horiz vP),
-  and let ℓ = up × ĥ. Then b₂ = nrm(ℓ − ⟪ℓ,n⟫n), the target's lateral direction projected
-  into the rotor plane, and b₁ = b₂ × b₃.
-  - The normalising denominator is √(1 − ⟪n,ℓ⟫²) = cos(bank), where
-    tan(bank) ≤ lateral thrust / ‖T‖ ≤ (v²/R + εT)/‖T‖.
-  - At 55 m/s, ‖T‖ is large because of drag, so the bank is small (≈ 25–30°).
-  - The construction is non-singular at every pitch, including near 90°.
-  - The heading denominator ‖horiz v‖ ≥ vMin·cos γ − εV is non-singular over the whole band.
-  - I ruled out the "downhill" yaw of v1, which is singular at low tilt, and plain
-    heading-plane yaw (b₁ = nrm(P_n ĥ)), which is singular as the pitch nears 90°.
-- **Hinge.** The camera sits in the plane span(b₁, b₃), which is roughly vertical and
-  contains the heading.
-  - Set η to the in-plane direction of −up. This is η* = pitch − 90°, which lies in
-    [−90°, 0] for forward pitch.
-  - It is clamped to [hingeLo, hingeHi], to cover backward pitch when a slow target
-    decelerates.
-- **Visibility.** angle(cam, LOS) ≤ asin|⟪b₂,up⟫| + clampMiss + μ, with
-  |⟪b₂,up⟫| ≤ |⟪n,ℓ⟫|. The requirement is bank + clampMiss + μ ≤ α.
+**The vehicle.** The airframe has a cone-shaped head. The camera sits on one face near
+the tip and looks *up*: its boresight is 30–70° above the rotor plane. In the existing
+model this is `frameCam b₁ b₃ η = cos η·b₁ + sin η·b₃` with
+`hingeLo = 30°, hingeHi = 70°`, a pitch hinge about b₂. A fixed camera is the case
+`hingeLo = hingeHi`. **No model change is needed.**
 
-## Rough prototype (scratch/proto_v4c.py; not the Lean budget)
+**The formation.** The drone flies the filtered target path offset by d straight *down*,
+so the line of sight is approximately +up. This is the overhead plan with the offset
+`d • up` replaced by `-d • up`, so the v2 planner and causality proofs carry over.
 
-Setup: the v2 quadrotor (1.5 kg, thrust/weight 6, c = 0.008), half-FOV 60°, d = 150 m,
-target band 20–55 m/s, R = 350 m, and a lag-4 least-squares planner.
+**The camera faces backwards relative to travel.** This is forced by the physics.
+- Let p be the drone's forward pitch, which is needed to fly fast: about 70–80° at
+  55 m/s.
+- If the camera face points *forward*, its elevation is η − p, which is ≤ 0 at speed. It
+  can never look up.
+- If it points *backward*, its angle measured from the rear horizon is p + η. Pitching
+  nose-down for speed rotates the camera up and over:
+  - at 20 m/s (p ≈ 5–20°) it looks back and up;
+  - at 55 m/s (p ≈ 70°) it looks straight up, at η ≈ 20–30°.
+- So speed helps this camera, the opposite of the belly camera.
 
-| Target | Result |
-|---|---|
-| jerk ≤ 1, dives ≤ 5–10°, aVert ≤ 1.5–3 | feasible; bank ≤ 26°, tilt ≤ 83°, Ω ≤ 1.2 rad/s |
-| jerk 2, dive 5°, aVert 1.5 | feasible at 120 Hz with a 1.5 s planner window |
-| jerk ≥ 3 | fails on mix_lo: torque exceeds the minimum collective thrust at the slow, diving end |
-| dives ≥ 10° with aVert 3 | fails on tilt: at 55 m/s, drag in a dive eats the vertical thrust |
+**Yaw locked to the lateral axis.** Let ĥ = nrm(horiz vP) and ℓ = up × ĥ. Then
+b₂ = nrm(−ℓ − ⟪−ℓ,n⟫n) and b₁ = b₂ × b₃, which points backwards.
+- The denominator is cos(bank), where tan(bank) ≤ lateral thrust / ‖T‖.
+- The construction is non-singular at every pitch and over the whole band. The
+  heading denominator is ‖horiz v‖ ≥ vMin·cos γ − εV.
 
-The camera is no longer the binding constraint. Two things are:
+**Hinge.** η* = 90° − p is the in-plane hinge angle that points straight up. Set
+η = clamp(η*, 30°, 70°), with clampMiss = dist(η*, [30°, 70°]).
 
-1. **Torque at realistic jerk.** An RC aircraft rolling into a 350 m turn at 55 m/s
-   reaches 8.6 m/s² of lateral acceleration in about 1 s, so jerk is about 5–10 m/s³.
-   - With only jerk bounded, the target may switch jerk sign every frame. The filtered
-     thrust then has second differences of order TV·J/δ, and the torque budget pays for
-     that.
-   - A real aircraft cannot do this: its control surfaces are rate-limited.
-2. **Fast dives.** Zlo = g − aVert − c·v²·sin γ − εT shrinks quickly at 55 m/s. This one
-   is physics: copying a fast dive requires an almost horizontal thrust.
+**Visibility.** angle(cam, LOS) ≤ bank + clampMiss + μ, where bank comes from
+|⟪b₂,up⟫| ≤ |⟪n,ℓ⟫|. The requirement is bank + clampMiss + μ ≤ α.
+
+## Rough prototype (scratch/proto_under.py; not the Lean budget)
+
+Setup: the v2 quadrotor, target band 20–55 m/s, R = 350 m, d ∈ {60, 100, 150} m (d barely
+matters), and a lag-4 least-squares planner.
+
+| Camera | Target | Result |
+|---|---|---|
+| hinge 30–70°, half-FOV 45° | jerk ≤ 2, dives ≤ 5° | feasible; pitch 1–79°, bank ≤ 29°, hinge miss ≤ 19° |
+| hinge 30–70°, half-FOV 60° | jerk 1, dives ≤ 10° | feasible |
+| hinge 30–70°, half-FOV 60° | jerk 2, dives 10° | fails on mix_lo (torque) |
+| fixed at 50° or 60° | any | fails: pitch sweeps about 80° across 20–55 m/s, so the miss is 40–50° |
+
+So the hinge is needed. A fixed top camera would need a speed-scheduled formation
+instead: the drone sits ahead and below at low speed and slides to behind and below at
+high speed. That offset follows the heading and costs about d·ω_T² of extra acceleration.
+It is listed as an alternative, not planned.
+
+The binding constraints are now torque at realistic jerk (5–10 m/s³ for a 55 m/s roll-in)
+and fast dives. The camera is not binding.
 
 ## Work items, in order
 
@@ -89,7 +97,7 @@ The camera is no longer the binding constraint. Two things are:
      explicitly rather than by transport. The v1 rate bounds in terms of frame
      differences need to be re-checked for sharpness.
 5. **Hinge** (Hinge.lean):
-   - η = clamp(atan2(⟪−up,b₃⟫, ⟪−up,b₁⟫));
+   - η = clamp(atan2(⟪up,b₃⟫, ⟪up,b₁⟫), 30°, 70°);
    - hinge-rate bound through the Lipschitz constant of atan2 and the frame differences;
    - the clamp-miss bound.
 6. **Visibility:** angle(cam, LOS) ≤ asin(Lat/‖T‖) + clampMiss + μ.
@@ -100,7 +108,8 @@ The camera is no longer the binding constraint. Two things are:
 9. **Necessity (closes part of the P3 gap).** steady_turn_necessary: for a target in a
    steady level turn at speed v and radius R, any strategy holding a fixed formation must
    satisfy a bank/FOV condition. This extends `steady_formation_iff` from straight flight
-   to turns, and pairs with the bank term in item 6.
+   to turns, and pairs with the bank term in item 6. Also prove the "forward-facing top
+   camera cannot see up at speed" lemma, which says the backward-facing camera is forced.
 10. Blueprint chapter, README, and an ledger entry.
 
 ## Out of scope (recorded caveats)
@@ -108,7 +117,9 @@ The camera is no longer the binding constraint. Two things are:
 - Rotor thrust that depends on airspeed. At 55 m/s edgewise flow changes the motor
   thrust, while the model keeps fMotor constant. A natural v4 refinement is a derate
   fMotor(v).
-- Formations other than overhead, such as trailing behind and above.
+- Ground clearance: there is no ground plane in the model (M4). Flying under the target
+  needs target altitude ≥ d + margin, which favours d ≈ 60–100 m.
+- Speed-scheduled formations for a fixed top camera.
 - Weaving drones, and the deferred minors M1, M3 and M4.
 
 ## Risks
