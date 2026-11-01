@@ -283,3 +283,46 @@ the rotor plane: the quad-plane or tail-sitter regime. Then:
 This is a qualitative model change, with i_w as a new design parameter like the hinge range.
 A rough sizing: supporting the weight of 1.5 kg at C_L = 0.5 needs about 0.04 m² at 35 m/s
 and about 0.016 m² at 55 m/s.
+
+## Winged-quad prototype (2026-11-01, user's design)
+
+**Design:** cambered lateral arms (span along b₂, chord along the camera's fore–aft axis b₁)
+and symmetric streamlined fore–aft arms. Prototype: `scripts/explore/winged_quad.py`
+(vertical-plane trim). It models a lift polar to stall, a flat plate past stall,
+cross-flow drag on the symmetric arms, and body drag. Wing area 0.018 m², AR 7.2,
+C_L0 = 0.3, 12° stall.
+
+**As specified (no incidence): an air brake.**
+- The quad pitches nose-down to fly fast, so the wing's angle of attack is negative:
+  −18° at 35 m/s and −38° at 55 m/s, past stall.
+- Motor thrust at 55 m/s rises to 39 m/s² (the rods model needs 26), eating motor margin.
+- In slow dives the wing lifts and *lowers* motor thrust (7.6 m/s²), which reduces torque
+  headroom.
+
+**With nose-up incidence of 15–25° (arm twist / wing at incidence): useful.**
+- At 45–55 m/s the wing flies near zero angle of attack, motor thrust is about
+  22–24 m/s², and pitch is 23–30° (rods: 68°).
+- Pitch change per unit of vertical acceleration falls from about 2.1–2.7° to 0.4–0.6°
+  per m/s², because the lift slope provides force authority.
+- Costs:
+  - low motor thrust in slow dives (about 6 m/s² at 35 m/s);
+  - stall at about 20 m/s in dives;
+  - turns still need banking, like the rods model.
+
+**Lower drag (the main effect of streamlining) breaks the version 3 geometry.**
+- With c = 0.0026 the necessary speed wall rises to about 148 m/s (c = 0.005: about
+  107 m/s).
+- But `MasterIneq3` fails everywhere, even at 45 m/s and with a 90° hinge:
+  - the thrust is no longer drag-inflated, so the bank needed in turns approaches an
+    airplane's (≥ 50° at 45 m/s);
+  - the low pitch puts the backward camera out of its hinge range;
+  - low collective thrust shrinks the torque headroom.
+- The version 3 design implicitly relied on high drag: big thrust gives a small bank, and a
+  steep pitch lets the camera look up.
+
+**Implication.** A winged or streamlined quad needs its own formation and camera design:
+- lift carries the maneuver forces (bank-to-turn, like the target);
+- a camera mount that handles bank (roll hinge or 2-axis gimbal) and low pitch (hinge to
+  about 90°);
+- a budget whose force balance includes lift. The thrust direction is then no longer the
+  total-force direction, which is a new model in Lean.
