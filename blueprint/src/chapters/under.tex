@@ -146,3 +146,35 @@ target at least $h$ below it in view, then it does so for at most
 $2U(\cos p_0+\sin p_0)/\kappa$, with $\kappa=\sin p_0(g-cVU)-cV^2\cos p_0$. Orbiting or
 weaving drones are not covered.
 \end{theorem}
+
+\chapter{P3: the necessary side}
+\label{chap:p3}
+
+\begin{theorem}[Directional speed wall, any trajectory]
+\label{thm:dirspeed-wall}
+\lean{VisionTracking.no_traj_keeps_of_dirSpeed_lt, VisionTracking.straightTarget_startsSteady,
+  VisionTracking.not_maintainableSteady_of_dirSpeed_lt}
+\leanok
+A target flying straight along an admissible direction $u$ faster than the drone's
+drag-limited directional speed $\mathrm{dirSpeed}\,u$ escapes \emph{every} drone trajectory,
+even one planned with knowledge of the target's whole future. The escaping target starts in
+steady flight.
+\end{theorem}
+
+\begin{theorem}[P3 bracket]
+\label{thm:p3-bracket}
+\lean{VisionTracking.NecIneq3, VisionTracking.master_necessary3, VisionTracking.p3_bracket}
+\leanok
+\uses{thm:master3, thm:dirspeed-wall}
+$\texttt{MasterIneq3}\Rightarrow$ every steadily starting target can be kept in view
+$\Rightarrow\texttt{NecIneq3}$, where $\texttt{NecIneq3}$ requires
+$v_{\max}\le\mathrm{dirSpeed}\,u$ in every admissible direction.
+\end{theorem}
+
+\begin{remark}[The gap]
+\texttt{scripts/gap\_v3.py} compares the two sides. For the reference quadrotor, the
+necessary side allows targets up to about $85$\,m/s. The sufficient side reaches about
+$64$\,m/s for jerk at most $3$ (with $5^\circ$ dives), and about $30$\,m/s at jerk $5$.
+The torque part of \texttt{MasterIneq3} drives the gap. It reflects the design choice of
+copying the target's acceleration exactly; it is not a physical limit.
+\end{remark}

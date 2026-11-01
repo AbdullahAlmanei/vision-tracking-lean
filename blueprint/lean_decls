@@ -355,3 +355,9 @@ VisionTracking.planar_tilt
 VisionTracking.angle_ge_of_opposite
 VisionTracking.QuadTraj.angle_b₃_step_le
 VisionTracking.inner_eq_track_coords
+VisionTracking.no_traj_keeps_of_dirSpeed_lt
+VisionTracking.straightTarget_startsSteady
+VisionTracking.not_maintainableSteady_of_dirSpeed_lt
+VisionTracking.NecIneq3
+VisionTracking.master_necessary3
+VisionTracking.p3_bracket
