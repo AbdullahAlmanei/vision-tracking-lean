@@ -106,3 +106,37 @@ N0 → N2 (with N0 only) → N3 → N1 → N2 updated → C.
   about 64 m/s for jerk ≤ 5 with the tuned quad (5° dives), and ≤ 3 with the base quad.
 - The remaining gap is torque at low collective thrust. It is not a physical wall: no
   universal torque lower bound of comparable size exists at a 100 m standoff.
+
+## Nonlinear tracker exploration (2026-11-01): negative
+
+Prototypes: `scripts/explore/tracker_saturated.py` and `scripts/explore/tracker_cascade.py`.
+Each caps the planned jerk and snap below the target's and is tested against randomised
+adversarial targets (accel ≤ A, jerk ≤ J, snap ≤ S).
+
+- **Saturated third-order loop:** diverges (integrator windup).
+- **Cascade** (acceleration feedforward with jerk and snap limits, slow saturated
+  position/velocity correction): stable, but against A = 5.5, J = 5, S = 15 the worst lags
+  are:
+  - 325 m and 35 m/s with caps (2.5, 3);
+  - 139 m and 24 m/s with caps (4, 6);
+  - 39 m and 13 m/s with caps (6, 10).
+
+The target can reverse its acceleration just as the tracker catches up, so the lags add up.
+Keeping the error at the formation scale therefore needs planned jerk and snap close to the
+target's own. A 10–40 m/s velocity lag also invalidates the drag part of the thrust budget
+at 55 m/s. Conclusion: a rate-limited tracker does not buy enough to justify a nonlinear
+invariant-set proof.
+
+The remaining P3 gap (torque at low collective thrust) comes from two sides:
+
+- **The tight formation.** The design stays exactly 100 m below the target, with tracking
+  error of a few metres.
+- **The weak necessary side.** The detection range is about 570 m and the half-FOV is 60°,
+  so universal necessity arguments leave the drone a lot of slack.
+
+Possible next steps:
+
+1. **Tighten necessity.** A game-style lower bound in which flipping targets force
+   thrust-direction rates, using the full visibility geometry.
+2. **Accept the bracket.** Write up P3 with its explicit gap and the design rules it
+   implies (yaw coefficient and arm length set the jerk ceiling).
