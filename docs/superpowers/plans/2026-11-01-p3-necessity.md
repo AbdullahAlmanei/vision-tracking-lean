@@ -326,3 +326,40 @@ C_L0 = 0.3, 12° stall.
   about 90°);
 - a budget whose force balance includes lift. The thrust direction is then no longer the
   total-force direction, which is a new model in Lean.
+
+## Winged quad in 3D with a one-axis hinge (2026-11-01): negative without control surfaces
+
+Prototype: `scripts/explore/winged_quad_3d.py`.
+- **Trim:** coordinated (zero side-slip); unknowns are tilt along v, bank about v and
+  motor thrust.
+- **Aerodynamics:** cambered lateral arms at incidence i_w, cross-flow on the symmetric
+  arms, body drag.
+- **Camera:** the one-axis hinge (30–70°), backward-facing, aimed straight up.
+- **Envelope swept:** speeds 20–55 m/s, climb ±10°, along-track ±2 m/s², turns up to
+  v²/R.
+
+| Worst case | Rods (c = 0.008) | Winged, i_w = 15° | Winged, i_w = 25° |
+|---|---|---|---|
+| Min motor thrust at 35 m/s | 11.4 m/s² | 0.0 | 0.8 |
+| Torque proxy need/avail at 35 m/s | 0.52 / 4.3 N | 0.52 / 0.01 N | 0.52 / 0.28 N |
+| Max bank at 55 m/s | 42° | 42° | 42° |
+| Max attitude sensitivity | 5.9°/(m/s²) | 5.9 | 5.9 |
+
+**Findings.**
+1. **Motors go idle.** In dives and decelerations, lift plus drag carry the load, so motor
+   thrust falls to about zero. A quad's torque comes only from *differential* motor thrust,
+   so torque authority vanishes exactly at the binding condition. This is the decisive
+   problem.
+2. **No lateral gain.** The worst-direction sensitivity is lateral (banking):
+   1/(normal force) ≈ 1/g gives 5.9° per m/s² for every design. Lift helps only in the
+   vertical plane. Turns still need banking, and the bank (42° at 55 m/s) is set by the
+   turn rate, not by the airframe.
+3. **Camera.** With the one-axis hinge the off-plane camera error equals the bank (42° at
+   55 m/s), the same as the rods model. The winged airframe neither helps nor hurts here.
+4. **Incidence 0° does not trim** at 45–55 m/s for many conditions: stalled braking.
+
+**What would change the picture: aerodynamic control surfaces** (elevons on the cambered
+arms, as on quad-planes and tail-sitters). They give torque ∝ dynamic pressure, which is
+independent of motor thrust and large at speed (q ≈ 750–1850 Pa). That removes the
+"torque needs motor thrust" coupling that binds the rods model in dives. It is a new
+actuator model.
