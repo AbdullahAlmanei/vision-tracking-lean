@@ -171,10 +171,19 @@ $\Rightarrow\texttt{NecIneq3}$, where $\texttt{NecIneq3}$ requires
 $v_{\max}\le\mathrm{dirSpeed}\,u$ in every admissible direction.
 \end{theorem}
 
+\begin{remark}[What does not help, and turns]
+Lag-compensating linear planners cannot reduce the torque the plan needs. With four
+frames of lag they must extrapolate, which forces a gain $\sum|h_i|\gtrsim2$, so smoothing
+never beats the target's own jerk and snap limits. A sustained-turn thrust necessity is
+vacuous here: the detection range (about $570$\,m) exceeds the turn radius ($350$\,m), so
+a drone hovering near the turn centre keeps a circling target in view.
+\end{remark}
+
 \begin{remark}[The gap]
 \texttt{scripts/gap\_v3.py} compares the two sides. For the reference quadrotor, the
 necessary side allows targets up to about $85$\,m/s. The sufficient side reaches about
-$64$\,m/s for jerk at most $3$ (with $5^\circ$ dives), and about $30$\,m/s at jerk $5$.
+$64$\,m/s with $5^\circ$ dives: for jerk at most $5$ with yaw coefficient $0.03$ and a
+$22$\,cm arm, and for jerk at most $3$ with the base quadrotor.
 The torque part of \texttt{MasterIneq3} drives the gap. It reflects the design choice of
 copying the target's acceleration exactly; it is not a physical limit.
 \end{remark}

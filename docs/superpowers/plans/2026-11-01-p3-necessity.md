@@ -74,3 +74,35 @@ numbers are in.
 ## Order
 
 N0 → N2 (with N0 only) → N3 → N1 → N2 updated → C.
+
+## Outcomes (2026-11-01)
+
+**C, linear smoothing: ruled out.**
+- With a 4-frame lag, a causal position-only filter must extrapolate. Lag-compensating
+  FIRs (velocity-exact or better) therefore need gain Σ|h| ≥ about 2.
+- The resulting jerk- and snap-type bounds (about 28–170 m/s³) never beat the target's own
+  limits (jerk 5, snap 15).
+- Copying the acceleration is near-optimal among linear planners. Beating it needs a
+  nonlinear, rate-limited tracker, which is a research item.
+
+**C-lite, analysis tightening: per-axis roll/pitch torque.**
+- Roll and pitch motors now pay only for their own axis's rate change and inertia, plus the
+  gyroscopic coupling.
+- Result: the quad with yaw coefficient 0.03 and a 22 cm arm now holds `MasterIneq3` at
+  jerk 5 up to about 64 m/s with 5° dives.
+- A further yaw tightening (orthogonality of the lateral and pitch parts of Δn) was
+  estimated at about 25% less yaw torque. That is not enough to flip any case, so it was
+  not done.
+
+**N1, sustained-turn thrust: vacuous here.**
+- The detection range (about 570 m) exceeds the turn radius (350 m).
+- A drone hovering near the turn centre keeps a circling target in view, so no thrust
+  necessity follows from turns in this regime.
+- N1 matters only when the detection range is below the turn radius.
+
+**P3 status.**
+- `p3_bracket` is proved.
+- The necessary side allows about 85 m/s (motor/drag wall). The sufficient side allows
+  about 64 m/s for jerk ≤ 5 with the tuned quad (5° dives), and ≤ 3 with the base quad.
+- The remaining gap is torque at low collective thrust. It is not a physical wall: no
+  universal torque lower bound of comparable size exists at a 100 m standoff.
