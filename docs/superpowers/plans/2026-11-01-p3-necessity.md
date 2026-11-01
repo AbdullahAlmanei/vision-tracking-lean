@@ -205,3 +205,49 @@ Prototypes, evaluated against the same speed-dependent budget: `scripts/explore/
 thrust-direction rate needed to follow lateral jerk J promptly is about J/T. The slack in
 range and field of view only helps a tracker that follows *slowly*, which design 3
 captures and designs 1–2 do not.
+
+## Capped-tracker numerical study (2026-11-01): negative
+
+**Files** (in `scripts/explore/`):
+- `capped_tracker_study.py`: one-axis cascade tracker; adversary searched over switching
+  times and jerk set-points.
+- `capped_table.json`: worst lags.
+- `capped_budget.py` and `capped_budget_vec.py`: payoff in the version 3 budget,
+  speed-scheduled.
+
+**Worst lags** (target jerk 5, snap 15):
+
+| Caps (jerk/snap) | A = 5.5 | A = 10.6 |
+|---|---|---|
+| (5, 10) | 11.5 m, 3.8 m/s | 20.5 m, 5.9 m/s |
+| (4, 6) | 26 m | 147 m |
+| (3, 5) | 69 m | 563 m |
+
+The acceleration lag is 2.5–10 m/s², and the planned acceleration exceeds the target's by
+up to the correction authority (2 m/s²). Against jerk 10, snap 30 the lags are 2–4× larger.
+
+**Payoff: worse than the tight formation at every speed.**
+- Caps per axis combine to vector caps √2–√3 larger, which removes any gain.
+- With vector caps, the saving on snap (about 17 → 10) is outweighed by three costs:
+  - the acceleration lag and overshoot inflate the lateral thrust, hence the bank, the
+    camera offset and the torque;
+  - the correction authority lowers the vertical thrust margin at the low-thrust binding
+    point;
+  - the velocity lag shifts the drag terms.
+
+**Verdict.** Within this proof architecture, the tight formation is the best of the five
+designs explored:
+- linear smoothing;
+- per-axis torque tightening (adopted);
+- loose yaw;
+- the averaged formation;
+- the capped tracker.
+
+The remaining gap comes from two sources:
+- the low-thrust physics of following fast dives (torque authority scales with thrust);
+- squared-rate floor terms in the bounds on the change of the body-rate vector. Bounding
+  each piece of a rotation separately loses the cancellation that makes a steady rotation
+  need no torque.
+
+The second source is the one remaining analysis lever: a bound on Δa that stays exact for
+steady rotations.
