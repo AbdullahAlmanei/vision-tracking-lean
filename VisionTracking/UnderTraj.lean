@@ -1,6 +1,7 @@
 import VisionTracking.UnderPlan
 import VisionTracking.Master2
 import VisionTracking.LookDown
+import VisionTracking.Hinge
 
 /-!
 # The underneath formation as a rigid-body trajectory
@@ -373,6 +374,160 @@ theorem kp_mix : MixerOK Q (Q.mass * ‖(kp T a₀ h hS).thrust k‖) ((kp T a�
   refine ⟨by linarith, by linarith, by linarith, by linarith⟩
 
 end Torque
+
+section Geometry
+
+variable {s : ℝ} (hs : s ∈ Set.Icc P.vMin P.vMax) {j : ℕ}
+  (hw : ‖T.v j‖ ∈ Set.Icc (sLo P δ s) (sHi P δ s))
+include hs hw
+
+theorem hP_facts : ‖hP T a₀ F j‖ = 1 ∧ ⟪hP T a₀ F j, up⟫ = 0 := by
+  refine ⟨norm_nrm_horiz (horiz_vP_ne T a₀ h hS hw hs), ?_⟩
+  rw [real_inner_comm]; exact inner_up_nrm_horiz _
+
+theorem thr_pos : 0 < ‖thr T a₀ Q F j‖ :=
+  (Tlo_pos h hs).trans_le (thr_norm_ge T a₀ h hS hw)
+
+omit h hS hs hw in
+theorem u3_eq : ⟪nP T a₀ Q F j, up⟫ = ⟪thr T a₀ Q F j, up⟫ / ‖thr T a₀ Q F j‖ := by
+  rw [nP, nrm, real_inner_smul_left, inv_mul_eq_div]
+
+theorem u3_pos : 0 < ⟪nP T a₀ Q F j, up⟫ := by
+  rw [u3_eq T a₀]
+  exact div_pos ((h.zlo_pos s hs).trans_le (thr_up T a₀ h hS hw).1) (thr_pos T a₀ h hS hs hw)
+
+/-- The pitch ratio `u₁/u₃` in terms of the planned thrust. -/
+theorem ratio_eq : ⟪B1 T a₀ Q F j, up⟫ / ⟪nP T a₀ Q F j, up⟫
+    = ‖latRaw (lP T a₀ F j) (nP T a₀ Q F j)‖⁻¹ * ⟪hP T a₀ F j, thr T a₀ Q F j⟫
+      / ⟪thr T a₀ Q F j, up⟫ := by
+  obtain ⟨-, hhu⟩ := hP_facts T a₀ h hS hs hw
+  have e := (lat_up_coords (n := nP T a₀ Q F j) hhu).1
+  have hT := thr_pos T a₀ h hS hs hw
+  rw [B1, show lP T a₀ F j = cross up (hP T a₀ F j) from rfl, e, u3_eq T a₀]
+  rw [show nP T a₀ Q F j = ‖thr T a₀ Q F j‖⁻¹ • thr T a₀ Q F j from rfl, real_inner_smul_right]
+  field_simp
+
+theorem r_bounds : 1 ≤ ‖latRaw (lP T a₀ F j) (nP T a₀ Q F j)‖⁻¹ ∧
+    ‖latRaw (lP T a₀ F j) (nP T a₀ Q F j)‖⁻¹ ≤ 1 / M P Q δ F s := by
+  obtain ⟨hl, hn, hf⟩ := frame_facts T a₀ h hS hs hw
+  have hsb := h.sb_lt s hs
+  refine ⟨?_, inv_norm_latRaw_le hn hl hf hsb⟩
+  have h1 := norm_latRaw_le_one hn hl
+  have h0 : 0 < ‖latRaw (lP T a₀ F j) (nP T a₀ Q F j)‖ :=
+    norm_pos_iff.2 (latRaw_ne hn hl (hf.trans_lt hsb))
+  rw [one_le_inv₀ h0]; exact h1
+
+theorem M_pos : 0 < M P Q δ F s := by
+  have hsb := h.sb_lt s hs
+  obtain ⟨-, -, hf⟩ := frame_facts T a₀ h hS hs hw
+  have hsb0 : 0 ≤ sb P Q δ F s := (abs_nonneg _).trans hf
+  exact Real.sqrt_pos.2 (by nlinarith)
+
+theorem phi_mem : φlo P Q δ F s ≤ phi T a₀ Q F j ∧ phi T a₀ Q F j ≤ φhi P Q δ F s := by
+  have hZ := h.zlo_pos s hs
+  obtain ⟨zl, zh⟩ := thr_up T a₀ h hS hw
+  have hY : 0 < ⟪thr T a₀ Q F j, up⟫ := hZ.trans_le zl
+  obtain ⟨r1, rM⟩ := r_bounds T a₀ h hS hs hw
+  have hM := M_pos T a₀ h hS hs hw
+  set r := ‖latRaw (lP T a₀ F j) (nP T a₀ Q F j)‖⁻¹
+  set X := ⟪hP T a₀ F j, thr T a₀ Q F j⟫
+  set Y := ⟪thr T a₀ Q F j, up⟫
+  have hX : Nlo P Q δ F s ≤ X := by
+    rw [show X = ⟪thr T a₀ Q F j, hP T a₀ F j⟫ from real_inner_comm _ _]
+    exact forward_ge T a₀ h hS hw hs
+  have hXabs : |X| ≤ Hhi P Q δ F s := by
+    obtain ⟨hh1, hhu⟩ := hP_facts T a₀ h hS hs hw
+    have e : X = ⟪hP T a₀ F j, horiz (thr T a₀ Q F j)⟫ := by
+      rw [horiz, inner_sub_right, real_inner_smul_right, hhu, mul_zero, sub_zero]
+    rw [e]
+    refine (abs_real_inner_le_norm _ _).trans ?_
+    rw [hh1, one_mul]; exact (thr_norm_le T a₀ h hS hw).2
+  unfold phi
+  rw [ratio_eq T a₀ h hS hs hw]
+  constructor
+  · unfold φlo
+    apply Real.arctan_strictMono.monotone
+    split_ifs with hN
+    · -- nonnegative forward thrust
+      have hZh : 0 < Zhi P Q δ F s := hY.trans_le zh
+      rw [div_le_div_iff₀ hZh hY]
+      have k1 : Nlo P Q δ F s ≤ r * X := by nlinarith
+      have k2 := mul_le_mul_of_nonneg_left zh hN
+      have k3 := mul_le_mul_of_nonneg_right k1 hZh.le
+      linarith
+    · have hN' : Nlo P Q δ F s < 0 := not_le.1 hN
+      have hZM : 0 < Zlo P Q δ F s * M P Q δ F s := mul_pos hZ hM
+      rw [div_le_div_iff₀ hZM hY]
+      have k3 : Nlo P Q δ F s * Y ≤ Nlo P Q δ F s * Zlo P Q δ F s :=
+        mul_le_mul_of_nonpos_left zl hN'.le
+      rcases le_or_gt 0 X with hX0 | hX0
+      · have : 0 ≤ r * X * (Zlo P Q δ F s * M P Q δ F s) :=
+          mul_nonneg (mul_nonneg (zero_le_one.trans r1) hX0) hZM.le
+        nlinarith
+      · have h1 : X / M P Q δ F s ≤ r * X := by
+          rw [div_le_iff₀ hM]
+          have : r * M P Q δ F s ≤ 1 := by
+            have := mul_le_mul_of_nonneg_right rM hM.le
+            rwa [div_mul_cancel₀ _ hM.ne'] at this
+          nlinarith
+        have h2 : Nlo P Q δ F s / M P Q δ F s ≤ X / M P Q δ F s :=
+          div_le_div_of_nonneg_right hX hM.le
+        have k1 : Nlo P Q δ F s / M P Q δ F s ≤ r * X := h2.trans h1
+        have k2 := mul_le_mul_of_nonneg_right k1 hZM.le
+        have e : Nlo P Q δ F s / M P Q δ F s * (Zlo P Q δ F s * M P Q δ F s)
+            = Nlo P Q δ F s * Zlo P Q δ F s := by field_simp
+        linarith
+  · unfold φhi
+    apply Real.arctan_strictMono.monotone
+    have hZM : 0 < Zlo P Q δ F s * M P Q δ F s := mul_pos hZ hM
+    rw [div_le_div_iff₀ hY hZM]
+    have hHnn : 0 ≤ Hhi P Q δ F s := (abs_nonneg X).trans hXabs
+    have h1 : r * X ≤ Hhi P Q δ F s / M P Q δ F s := by
+      calc r * X ≤ r * |X| := mul_le_mul_of_nonneg_left (le_abs_self X) (zero_le_one.trans r1)
+        _ ≤ 1 / M P Q δ F s * Hhi P Q δ F s :=
+            mul_le_mul rM hXabs (abs_nonneg _) (by positivity)
+        _ = Hhi P Q δ F s / M P Q δ F s := by ring
+    have h2 := mul_le_mul_of_nonneg_right h1 hZM.le
+    have h3 : Hhi P Q δ F s / M P Q δ F s * (Zlo P Q δ F s * M P Q δ F s)
+        = Hhi P Q δ F s * Zlo P Q δ F s := by field_simp
+    have h4 := mul_le_mul_of_nonneg_left zl hHnn
+    linarith
+
+/-- The in-plane radius of `e₃` in the frame. -/
+theorem rho_ge : M P Q δ F s ≤ √(⟪nP T a₀ Q F j, up⟫ ^ 2 + ⟪B1 T a₀ Q F j, up⟫ ^ 2) := by
+  obtain ⟨hl, hn, hf⟩ := frame_facts T a₀ h hS hs hw
+  obtain ⟨u1, u2, u12, x⟩ := B_facts T a₀ h hS j
+  obtain ⟨hh1, hhu⟩ := hP_facts T a₀ h hS hs hw
+  have B := bessel_pair u1 u2 u12 up
+  rw [x, norm_up'] at B
+  -- |u₂| ≤ sb
+  have e2 := (lat_up_coords (n := nP T a₀ Q F j) hhu).2
+  have hlu : ⟪lP T a₀ F j, up⟫ = 0 := by rw [lP, real_inner_comm]; exact inner_cross_left _ _
+  have hb := bessel_pair hl norm_up' (by rw [lP]; exact hlu) (nP T a₀ Q F j)
+  rw [hn] at hb
+  set f := ⟪lP T a₀ F j, nP T a₀ Q F j⟫
+  have hm2 : ‖latRaw (lP T a₀ F j) (nP T a₀ Q F j)‖ ^ 2 = 1 - f ^ 2 := norm_latRaw_sq hn hl
+  have hm0 : 0 < ‖latRaw (lP T a₀ F j) (nP T a₀ Q F j)‖ :=
+    norm_pos_iff.2 (latRaw_ne hn hl (hf.trans_lt (h.sb_lt s hs)))
+  have hu2 : ⟪B2 T a₀ Q F j, up⟫ ^ 2 ≤ sb P Q δ F s ^ 2 := by
+    rw [B2, show lP T a₀ F j = cross up (hP T a₀ F j) from rfl, e2]
+    rw [show cross up (hP T a₀ F j) = lP T a₀ F j from rfl]
+    have hnz : ⟪nP T a₀ Q F j, up⟫ ^ 2 ≤ 1 - f ^ 2 := by
+      rw [real_inner_comm (nP T a₀ Q F j) up] at hb
+      nlinarith [sq_nonneg ⟪cross (lP T a₀ F j) up, nP T a₀ Q F j⟫]
+    have hf2 : f ^ 2 ≤ sb P Q δ F s ^ 2 := by
+      rw [← sq_abs]; exact pow_le_pow_left₀ (abs_nonneg _) hf 2
+    rw [mul_pow, mul_pow, inv_pow, hm2]
+    have h1m : 0 < 1 - f ^ 2 := by rw [← hm2]; positivity
+    rw [inv_mul_le_iff₀ h1m]
+    have := mul_le_mul_of_nonneg_left hnz (sq_nonneg f)
+    have := mul_le_mul_of_nonneg_right hf2 h1m.le
+    linarith
+  unfold M
+  apply Real.sqrt_le_sqrt
+  linarith
+
+end Geometry
 
 end Under
 

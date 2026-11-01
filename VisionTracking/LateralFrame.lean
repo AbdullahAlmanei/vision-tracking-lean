@@ -655,4 +655,23 @@ theorem lat_steps_crude {ℓ₀ ℓ₁ n₀ n₁ : E3} {sb dn dl : ℝ}
   · refine (norm_cross_le _ _).trans ?_
     rw [lat2_unit hn₀ hℓ₀ (hf₀.trans_lt hsb), one_mul]; exact hdn
 
+
+/-- The up-components of the lateral frame when `ℓ = up × ĥ` with `ĥ` horizontal. -/
+theorem lat_up_coords {hh n : E3} (hhu : ⟪hh, up⟫ = 0) :
+    ⟪lat1 (cross up hh) n, up⟫ = ‖latRaw (cross up hh) n‖⁻¹ * ⟪hh, n⟫ ∧
+    ⟪lat2 (cross up hh) n, up⟫ = ‖latRaw (cross up hh) n‖⁻¹ * (⟪cross up hh, n⟫ * ⟪n, up⟫) := by
+  have huu : ⟪up, up⟫ = 1 := by rw [real_inner_self_eq_norm_sq, norm_up']; norm_num
+  have hlu : ⟪cross up hh, up⟫ = 0 := by rw [real_inner_comm]; exact inner_cross_left _ _
+  constructor
+  · rw [lat1, lat2, nrm, cross_smul_left, real_inner_smul_left]
+    congr 1
+    have e1 : ∀ a : E3, ∀ c : ℝ, cross (-a + c • n) n = -cross a n := by
+      intro a c; ext i; fin_cases i <;> simp [cross, crossProduct] <;> ring_nf <;> simp
+    rw [latRaw, e1, cross_cross_eq, inner_neg_left, inner_sub_left, real_inner_smul_left,
+      real_inner_smul_left, huu, hhu]
+    ring
+  · rw [lat2, nrm, real_inner_smul_left, latRaw, inner_add_left, inner_neg_left,
+      real_inner_smul_left, hlu]
+    ring
+
 end VisionTracking
