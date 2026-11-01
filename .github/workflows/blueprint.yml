@@ -52,4 +52,5 @@ jobs:
         uses: leanprover-community/docgen-action@dacc1acc2a3f532cc577266979ba9c36c7593f7c # 2026-10-05
         with:
           blueprint: true
+          api-docs: false # API docs for the Mathlib closure run out of memory on the runner
           homepage: home_page
