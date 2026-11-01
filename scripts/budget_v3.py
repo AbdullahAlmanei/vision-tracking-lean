@@ -21,18 +21,6 @@ def fir_consts(h):
     T1 = tail(h); T2 = tail(T1); T3 = tail(T2)
     return dict(G1=abs(T1).sum(), G2=abs(T2).sum(), G3=abs(T3).sum(), H0=abs(h).sum())
 
-def lat_d2m(sb, dn, dl, d2n, d2l):
-    return d2l + (d2l + d2n + 2 * dl * dn) + sb * d2n + 2 * (dl + dn) * dn
-
-def lat_d2b2(sb, dn, dl, d2n, d2l):
-    M = math.sqrt(1 - sb ** 2)
-    return lat_d2m(sb, dn, dl, d2n, d2l) / M + 2 * (sb * (dl + dn) / M ** 3)
-
-def lat_dyaw(sb, dn, dl, d2n, xn, d2l, db):
-    M = math.sqrt(1 - sb ** 2)
-    return ((d2l + sb * xn + 2 * (dl + dn) * dn) / M + 2 * (sb * (dl + dn) / M ** 3) * (dl + sb * dn)
-            + lat_d2b2(sb, dn, dl, d2n, d2l) / 2 * db + db * db)
-
 def at_speed(P, Q, C, dt, F, d, s):
     """Budget3 quantities at speed s; returns (dict of conditions, dict of values)."""
     g, c = Q['g'], Q['drag']
@@ -65,8 +53,10 @@ def at_speed(P, Q, C, dt, F, d, s):
     if th >= 1: return ok, {}
     G = 1 / math.sqrt(1 - th ** 2)
     db = G * th
-    rp2 = xn + d2n * db + 2 * dn * db
-    yaw2 = lat_dyaw(sb, dn, dl, d2n, xn, d2l, db)
+    tw = (dl + sb * dn) / M                                      # latTw
+    core = (d2l + sb * xn + 2 * (dl + dn) * dn) / M + 2 * (sb * (dl + dn) / M ** 3) * (dl + sb * dn)
+    rp2 = xn + math.sqrt(2) * dn * (tw + db ** 2 + dn * db / 2)    # latRpSharp
+    yaw2 = core + dn ** 2 / 2 + db ** 2 * (tw + db ** 2 / 2)       # latYawSharp
     da = math.sqrt(rp2 ** 2 + yaw2 ** 2)
     Om = G * th / dt; dOm = (G * da + (G - 1) * th) / dt; dOmz = (G * yaw2 + (G - 1) * th) / dt
     Jxy = max(Q['Jx'], Q['Jy']); Jg = max(abs(Q['Jz'] - Q['Jy']), abs(Q['Jx'] - Q['Jz']))

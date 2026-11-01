@@ -1,5 +1,5 @@
 import VisionTracking.Budget2
-import VisionTracking.LateralFrame
+import VisionTracking.RateSharp
 import VisionTracking.PlannerSnap
 
 /-!
@@ -70,10 +70,10 @@ noncomputable def Gψ : ℝ := 1 / √(1 - θa P Q δ F s ^ 2)
 /-- Sharp bound on the step of each frame vector: the rotation angle. -/
 noncomputable def db : ℝ := Gψ P Q δ F s * θa P Q δ F s
 noncomputable def rp2 : ℝ :=
-  xn P Q δ F s + d2n P Q δ F s * db P Q δ F s + 2 * dn P Q δ F s * db P Q δ F s
+  latRpSharp (sb P Q δ F s) (dn P Q δ F s) (dl P δ F s) (xn P Q δ F s) (db P Q δ F s)
 noncomputable def yaw2 : ℝ :=
-  latDYaw (sb P Q δ F s) (dn P Q δ F s) (dl P δ F s) (d2n P Q δ F s) (xn P Q δ F s)
-    (d2l P δ F s) (db P Q δ F s)
+  latYawSharp (sb P Q δ F s) (dn P Q δ F s) (dl P δ F s) (xn P Q δ F s) (d2l P δ F s)
+    (db P Q δ F s)
 noncomputable def da : ℝ := √(rp2 P Q δ F s ^ 2 + yaw2 P Q δ F s ^ 2)
 noncomputable def Ωb : ℝ := Gψ P Q δ F s * θa P Q δ F s / δ
 noncomputable def dΩ : ℝ :=

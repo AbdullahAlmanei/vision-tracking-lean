@@ -257,7 +257,6 @@ theorem dav_le : ‖av T a₀ (Q := Q) (F := F) (k + 1) - av T a₀ (Q := Q) (F 
   have dl0 := l_step T a₀ h hS hs w0 w1
   have dl1 := l_step T a₀ h hS hs w1 w2
   rw [e2] at dn1 dl1
-  have d2n := n_second T a₀ h hS hs w0 w1 w2
   have xn := n_cross_second T a₀ h hS hs w0 w1 w2
   have d2l := l_second T a₀ h hS hs w0 w1 w2
   obtain ⟨s10, s20⟩ := B_step_le T a₀ h hS k hs w0 w1
@@ -265,9 +264,8 @@ theorem dav_le : ‖av T a₀ (Q := Q) (F := F) (k + 1) - av T a₀ (Q := Q) (F 
   rw [e2] at s11 s21
   simp only [B1, B2] at s10 s11 s20 s21
   have hdb := And.intro s10 (And.intro s11 (And.intro s20 s21))
-  have rp := lat_aVec_rp_second hn0 hn1 hn2 hl0 hl1 hl2 hf0 hf1 hf2 hsb dn0 d2n xn hdb
-  have yw := lat_aVec_yaw_second hn0 hn1 hn2 hl0 hl1 hl2 hf0 hf1 hf2 hsb dn0 dn1 dl0 dl1 d2n xn
-    d2l hdb
+  have rp := lat_rp_sharp hn0 hn1 hn2 hl0 hl1 hl2 hf0 hf1 hf2 hsb dn0 dn1 dl0 dl1 xn hdb
+  have yw := lat_yaw_sharp hn0 hn1 hn2 hl0 hl1 hl2 hf0 hf1 hf2 hsb dn0 dn1 dl0 dl1 xn d2l hdb
   simp only [av, B1, B2]
   rw [e2]
   refine ⟨?_, yw, rp⟩

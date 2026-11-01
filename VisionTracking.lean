@@ -38,4 +38,5 @@ import VisionTracking.Hinge
 import VisionTracking.Master3
 import VisionTracking.Necessity3
 import VisionTracking.RateExact
+import VisionTracking.RateSharp
 import VisionTracking.Plan
