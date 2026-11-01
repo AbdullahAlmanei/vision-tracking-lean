@@ -241,7 +241,10 @@ theorem windows : ‖T.v k‖ ∈ Set.Icc P.vMin P.vMax ∧
 theorem dav_le : ‖av T a₀ (Q := Q) (F := F) (k + 1) - av T a₀ (Q := Q) (F := F) k‖
       ≤ da P Q δ F ‖T.v k‖ ∧
     |(av T a₀ (Q := Q) (F := F) (k + 1)).ofLp 2 - (av T a₀ (Q := Q) (F := F) k).ofLp 2|
-      ≤ yaw2 P Q δ F ‖T.v k‖ := by
+      ≤ yaw2 P Q δ F ‖T.v k‖ ∧
+    ((av T a₀ (Q := Q) (F := F) (k + 1)).ofLp 0 - (av T a₀ (Q := Q) (F := F) k).ofLp 0) ^ 2
+      + ((av T a₀ (Q := Q) (F := F) (k + 1)).ofLp 1 - (av T a₀ (Q := Q) (F := F) k).ofLp 1) ^ 2
+      ≤ rp2 P Q δ F ‖T.v k‖ ^ 2 := by
   obtain ⟨hs, w0, w1, w2⟩ := windows T h k
   set s := ‖T.v k‖
   obtain ⟨hl0, hn0, hf0⟩ := frame_facts T a₀ h hS hs w0
@@ -267,29 +270,55 @@ theorem dav_le : ‖av T a₀ (Q := Q) (F := F) (k + 1) - av T a₀ (Q := Q) (F 
     d2l hdb
   simp only [av, B1, B2]
   rw [e2]
-  refine ⟨?_, yw⟩
+  refine ⟨?_, yw, rp⟩
   unfold da
   exact da_aux (R := rp2 P Q δ F s) rp yw
 
 theorem drate_le : ‖(kp T a₀ h hS).rate (k + 1) - (kp T a₀ h hS).rate k‖ ≤ dΩ P Q δ F ‖T.v k‖ ∧
-    |((kp T a₀ h hS).rate (k + 1) - (kp T a₀ h hS).rate k).ofLp 2| ≤ dΩz P Q δ F ‖T.v k‖ := by
+    |((kp T a₀ h hS).rate (k + 1) - (kp T a₀ h hS).rate k).ofLp 2| ≤ dΩz P Q δ F ‖T.v k‖ ∧
+    |((kp T a₀ h hS).rate (k + 1) - (kp T a₀ h hS).rate k).ofLp 0| ≤ dΩrp P Q δ F ‖T.v k‖ ∧
+    |((kp T a₀ h hS).rate (k + 1) - (kp T a₀ h hS).rate k).ofLp 1| ≤ dΩrp P Q δ F ‖T.v k‖ := by
   obtain ⟨hs, w0, w1, w2⟩ := windows T h k
   have a0 := av_le T a₀ h hS hs w0 w1
   have a1 : ‖av T a₀ (Q := Q) (F := F) (k + 1)‖ ≤ θa P Q δ F ‖T.v k‖ := av_le T a₀ h hS hs w1 w2
   obtain ⟨P1, P2⟩ := psiVec_sub_le a0 a1 (h.θ_lt _ hs)
-  obtain ⟨D1, D2⟩ := dav_le T a₀ h hS k
+  obtain ⟨D1, D2, D3⟩ := dav_le T a₀ h hS k
   have hδ := h.δ_pos
-  rw [kp_rate, kp_rate, ← smul_sub]
   have hG : 1 / √(1 - θa P Q δ F ‖T.v k‖ ^ 2) = Gψ P Q δ F ‖T.v k‖ := rfl
   have hGpos : 0 ≤ Gψ P Q δ F ‖T.v k‖ := by unfold Gψ; positivity
-  constructor
-  · rw [norm_smul, norm_inv, Real.norm_of_nonneg hδ.le, inv_mul_eq_div]
+  have comp : ∀ i : Fin 3, |(av T a₀ (Q := Q) (F := F) (k + 1)).ofLp i
+      - (av T a₀ (Q := Q) (F := F) k).ofLp i| ≤ |rp2 P Q δ F ‖T.v k‖| →
+      |((kp T a₀ h hS).rate (k + 1) - (kp T a₀ h hS).rate k).ofLp i| ≤ dΩrp P Q δ F ‖T.v k‖ := by
+    intro i hai
+    rw [kp_rate, kp_rate, ← smul_sub]
+    simp only [WithLp.ofLp_smul, Pi.smul_apply, smul_eq_mul, inv_mul_eq_div]
+    rw [abs_div, abs_of_pos hδ]
+    unfold dΩrp
+    apply div_le_div_of_nonneg_right _ hδ.le
+    refine (P2 i).trans ?_
+    rw [div_eq_mul_one_div, hG, mul_comm]
+    have := mul_le_mul_of_nonneg_left hai hGpos
+    linarith
+  have h0 : |(av T a₀ (Q := Q) (F := F) (k + 1)).ofLp 0 - (av T a₀ (Q := Q) (F := F) k).ofLp 0|
+      ≤ |rp2 P Q δ F ‖T.v k‖| := by
+    apply sq_le_sq.mp
+    nlinarith [sq_nonneg ((av T a₀ (Q := Q) (F := F) (k + 1)).ofLp 1
+      - (av T a₀ (Q := Q) (F := F) k).ofLp 1)]
+  have h1 : |(av T a₀ (Q := Q) (F := F) (k + 1)).ofLp 1 - (av T a₀ (Q := Q) (F := F) k).ofLp 1|
+      ≤ |rp2 P Q δ F ‖T.v k‖| := by
+    apply sq_le_sq.mp
+    nlinarith [sq_nonneg ((av T a₀ (Q := Q) (F := F) (k + 1)).ofLp 0
+      - (av T a₀ (Q := Q) (F := F) k).ofLp 0)]
+  refine ⟨?_, ?_, comp 0 h0, comp 1 h1⟩
+  · rw [kp_rate, kp_rate, ← smul_sub]
+    rw [norm_smul, norm_inv, Real.norm_of_nonneg hδ.le, inv_mul_eq_div]
     apply div_le_div_of_nonneg_right _ hδ.le
     refine P1.trans ?_
     rw [div_eq_mul_one_div, hG, mul_comm]
     have := mul_le_mul_of_nonneg_left D1 hGpos
     linarith
-  · simp only [WithLp.ofLp_smul, Pi.smul_apply, smul_eq_mul, inv_mul_eq_div]
+  · rw [kp_rate, kp_rate, ← smul_sub]
+    simp only [WithLp.ofLp_smul, Pi.smul_apply, smul_eq_mul, inv_mul_eq_div]
     rw [abs_div, abs_of_pos hδ]
     apply div_le_div_of_nonneg_right _ hδ.le
     refine (P2 2).trans ?_
@@ -303,25 +332,48 @@ theorem kp_rate_le : ‖(kp T a₀ h hS).rate k‖ ≤ Ωb P Q δ F ‖T.v k‖ 
   rw [kp_rate, norm_smul, norm_inv, Real.norm_of_nonneg h.δ_pos.le, inv_mul_eq_div]
   exact div_le_div_of_nonneg_right (rate_le_Ωb T a₀ h hS k hs w0 w1) h.δ_pos.le
 
-theorem kp_torque_le : ‖(kp T a₀ h hS).torque k‖ ≤ τrp P Q δ F ‖T.v k‖ := by
-  unfold KinPlan.torque τrp
-  have hJ : 0 ≤ Budget.Jmax Q := le_trans Q.Jx_pos.le (le_max_left _ _)
+theorem kp_torque_rp_le : |((kp T a₀ h hS).torque k).ofLp 0| ≤ τrp P Q δ F ‖T.v k‖ ∧
+    |((kp T a₀ h hS).torque k).ofLp 1| ≤ τrp P Q δ F ‖T.v k‖ := by
+  set Ω := (kp T a₀ h hS).rate k
   have hδ := h.δ_pos
-  refine (norm_add_le _ _).trans (add_le_add ?_ ?_)
-  · refine (inertia_norm_le Q _).trans ?_
-    rw [norm_smul, norm_inv, Real.norm_of_nonneg hδ.le, mul_div_assoc]
-    apply mul_le_mul_of_nonneg_left _ hJ
-    rw [inv_mul_eq_div]
-    exact div_le_div_of_nonneg_right (drate_le T a₀ h hS k).1 hδ.le
-  · refine (norm_cross_le _ _).trans ?_
-    have h1 := kp_rate_le T a₀ h hS k
-    have h2 := inertia_norm_le Q ((kp T a₀ h hS).rate k)
-    have h0 := norm_nonneg ((kp T a₀ h hS).rate k)
-    calc ‖(kp T a₀ h hS).rate k‖ * ‖Q.inertia ((kp T a₀ h hS).rate k)‖
-        ≤ ‖(kp T a₀ h hS).rate k‖ * (Budget.Jmax Q * ‖(kp T a₀ h hS).rate k‖) :=
-          mul_le_mul_of_nonneg_left h2 h0
-      _ ≤ Budget.Jmax Q * Ωb P Q δ F ‖T.v k‖ ^ 2 := by
-          nlinarith [mul_le_mul h1 h1 h0 (h0.trans h1)]
+  obtain ⟨-, -, D0, D1⟩ := drate_le T a₀ h hS k
+  have hr := kp_rate_le T a₀ h hS k
+  have hprod : ∀ a b : Fin 3, |Ω.ofLp a * Ω.ofLp b| ≤ Ωb P Q δ F ‖T.v k‖ ^ 2 := by
+    intro a b
+    rw [abs_mul]
+    have := mul_le_mul ((abs_coord_le Ω a).trans hr) ((abs_coord_le Ω b).trans hr)
+      (abs_nonneg _) ((norm_nonneg _).trans hr)
+    nlinarith
+  have hJ : ∀ J x : ℝ, 0 < J → J ≤ Jxy Q → |x| ≤ dΩrp P Q δ F ‖T.v k‖ →
+      |J * (δ⁻¹ * x)| ≤ Jxy Q * dΩrp P Q δ F ‖T.v k‖ / δ := by
+    intro J x hJ0 hJle hx
+    rw [abs_mul, abs_of_pos hJ0, abs_mul, abs_inv, abs_of_pos hδ, mul_div_assoc, inv_mul_eq_div]
+    have hd : |x| / δ ≤ dΩrp P Q δ F ‖T.v k‖ / δ := div_le_div_of_nonneg_right hx hδ.le
+    exact mul_le_mul hJle hd (by positivity) (le_trans hJ0.le hJle)
+  have hg : ∀ x : ℝ, |x| ≤ Jg Q → ∀ a b : Fin 3,
+      |x * (Ω.ofLp a * Ω.ofLp b)| ≤ Jg Q * Ωb P Q δ F ‖T.v k‖ ^ 2 := by
+    intro x hx a b
+    rw [abs_mul]; exact mul_le_mul hx (hprod a b) (abs_nonneg _) ((abs_nonneg _).trans hx)
+  have e0 : ((kp T a₀ h hS).torque k).ofLp 0
+      = Q.Jx * (δ⁻¹ * ((kp T a₀ h hS).rate (k + 1) - Ω).ofLp 0)
+        + (Q.Jz - Q.Jy) * (Ω.ofLp 1 * Ω.ofLp 2) := by
+    simp only [KinPlan.torque, WithLp.ofLp_add, Pi.add_apply, QuadParams.inertia, cross,
+      crossProduct]
+    simp [Ω]; ring
+  have e1 : ((kp T a₀ h hS).torque k).ofLp 1
+      = Q.Jy * (δ⁻¹ * ((kp T a₀ h hS).rate (k + 1) - Ω).ofLp 1)
+        + (Q.Jx - Q.Jz) * (Ω.ofLp 0 * Ω.ofLp 2) := by
+    simp only [KinPlan.torque, WithLp.ofLp_add, Pi.add_apply, QuadParams.inertia, cross,
+      crossProduct]
+    simp [Ω]; ring
+  unfold τrp
+  constructor
+  · rw [e0]
+    exact (abs_add_le _ _).trans (add_le_add (hJ _ _ Q.Jx_pos (le_max_left _ _) D0)
+      (hg _ (le_max_left _ _) _ _))
+  · rw [e1]
+    exact (abs_add_le _ _).trans (add_le_add (hJ _ _ Q.Jy_pos (le_max_right _ _) D1)
+      (hg _ (le_max_right _ _) _ _))
 
 theorem kp_torque_yaw_le : |((kp T a₀ h hS).torque k).ofLp 2| ≤ τyaw P Q δ F ‖T.v k‖ := by
   set Ω := (kp T a₀ h hS).rate k
@@ -338,7 +390,7 @@ theorem kp_torque_yaw_le : |((kp T a₀ h hS).torque k).ofLp 2| ≤ τyaw P Q δ
   · rw [abs_mul, abs_of_pos Q.Jz_pos, abs_mul, abs_inv, abs_of_pos hδ, mul_div_assoc,
       inv_mul_eq_div]
     exact mul_le_mul_of_nonneg_left
-      (div_le_div_of_nonneg_right (drate_le T a₀ h hS k).2 hδ.le) Q.Jz_pos.le
+      (div_le_div_of_nonneg_right (drate_le T a₀ h hS k).2.1 hδ.le) Q.Jz_pos.le
   · rw [abs_mul]
     apply mul_le_mul_of_nonneg_left _ (abs_nonneg _)
     have a0 := abs_coord_le Ω 0
@@ -350,7 +402,6 @@ theorem kp_torque_yaw_le : |((kp T a₀ h hS).torque k).ofLp 2| ≤ τyaw P Q δ
 
 theorem kp_mix : MixerOK Q (Q.mass * ‖(kp T a₀ h hS).thrust k‖) ((kp T a₀ h hS).torque k) := by
   obtain ⟨hs, w0, -, -⟩ := windows T h k
-  have hτ := kp_torque_le T a₀ h hS k
   have hy := kp_torque_yaw_le T a₀ h hS k
   have hm := Q.mass_pos
   have hL : 0 < 2 * Q.arm := by linarith [Q.arm_pos]
@@ -360,9 +411,9 @@ theorem kp_mix : MixerOK Q (Q.mass * ‖(kp T a₀ h hS).thrust k‖) ((kp T a�
   have hT2 : ‖(kp T a₀ h hS).thrust k‖ ≤ Thi P Q δ F ‖T.v k‖ := by
     rw [kp_thrust]; exact (thr_norm_le T a₀ h hS w0).1
   have b0 : |((kp T a₀ h hS).torque k).ofLp 0| / (2 * Q.arm) ≤ τrp P Q δ F ‖T.v k‖ / (2 * Q.arm) :=
-    div_le_div_of_nonneg_right ((abs_coord_le _ 0).trans hτ) hL.le
+    div_le_div_of_nonneg_right (kp_torque_rp_le T a₀ h hS k).1 hL.le
   have b1 : |((kp T a₀ h hS).torque k).ofLp 1| / (2 * Q.arm) ≤ τrp P Q δ F ‖T.v k‖ / (2 * Q.arm) :=
-    div_le_div_of_nonneg_right ((abs_coord_le _ 1).trans hτ) hL.le
+    div_le_div_of_nonneg_right (kp_torque_rp_le T a₀ h hS k).2 hL.le
   have b2 : |((kp T a₀ h hS).torque k).ofLp 2| / (4 * Q.kYaw) ≤ τyaw P Q δ F ‖T.v k‖ / (4 * Q.kYaw) :=
     div_le_div_of_nonneg_right hy hk.le
   have m1 : Q.mass * Tlo P Q δ F ‖T.v k‖ / 4 ≤ Q.mass * ‖(kp T a₀ h hS).thrust k‖ / 4 := by

@@ -80,7 +80,12 @@ noncomputable def dΩ : ℝ :=
   (Gψ P Q δ F s * da P Q δ F s + (Gψ P Q δ F s - 1) * θa P Q δ F s) / δ
 noncomputable def dΩz : ℝ :=
   (Gψ P Q δ F s * yaw2 P Q δ F s + (Gψ P Q δ F s - 1) * θa P Q δ F s) / δ
-noncomputable def τrp : ℝ := Budget.Jmax Q * dΩ P Q δ F s / δ + Budget.Jmax Q * Ωb P Q δ F s ^ 2
+/-- Roll and pitch: inertia and gyroscopic coupling of those axes only. -/
+noncomputable def Jxy : ℝ := max Q.Jx Q.Jy
+noncomputable def Jg : ℝ := max |Q.Jz - Q.Jy| |Q.Jx - Q.Jz|
+noncomputable def dΩrp : ℝ :=
+  (Gψ P Q δ F s * |rp2 P Q δ F s| + (Gψ P Q δ F s - 1) * θa P Q δ F s) / δ
+noncomputable def τrp : ℝ := Jxy Q * dΩrp P Q δ F s / δ + Jg Q * Ωb P Q δ F s ^ 2
 noncomputable def τyaw : ℝ := Q.Jz * dΩz P Q δ F s / δ + |Q.Jy - Q.Jx| * Ωb P Q δ F s ^ 2
 /-- Forward thrust lower bound along the planned heading. -/
 noncomputable def Nlo : ℝ :=

@@ -69,8 +69,9 @@ def at_speed(P, Q, C, dt, F, d, s):
     yaw2 = lat_dyaw(sb, dn, dl, d2n, xn, d2l, db)
     da = math.sqrt(rp2 ** 2 + yaw2 ** 2)
     Om = G * th / dt; dOm = (G * da + (G - 1) * th) / dt; dOmz = (G * yaw2 + (G - 1) * th) / dt
-    Jm = max(Q['Jx'], Q['Jy'], Q['Jz'])
-    trp = Jm * dOm / dt + Jm * Om ** 2
+    Jxy = max(Q['Jx'], Q['Jy']); Jg = max(abs(Q['Jz'] - Q['Jy']), abs(Q['Jx'] - Q['Jz']))
+    dOmrp = (G * abs(rp2) + (G - 1) * th) / dt
+    trp = Jxy * dOmrp / dt + Jg * Om ** 2
     tyaw = Q['Jz'] * dOmz / dt + abs(Q['Jy'] - Q['Jx']) * Om ** 2
     Nlo = c * sLo ** 2 * cg - A - Thi * (eV / vh) - eT
     plo = math.atan(Nlo / Zhi if Nlo >= 0 else Nlo / (Zlo * M))
