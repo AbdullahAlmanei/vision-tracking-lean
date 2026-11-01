@@ -11,7 +11,9 @@ gap that vanishes as the control period shrinks.
 See the blueprint (`blueprint/src/`) for the model, the proved results and the
 roadmap.
 
-## Status
+See [docs/P3.md](docs/P3.md) for the P3 write-up (results, numbers, gap, design rules).
+
+Status
 
 Every statement is about a full rigid-body quadrotor: a right-handed orthonormal
 body frame (roll, pitch, yaw), body rates driven by Euler's equation, four bounded
