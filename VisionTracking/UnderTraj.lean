@@ -529,6 +529,138 @@ theorem rho_ge : M P Q δ F s ≤ √(⟪nP T a₀ Q F j, up⟫ ^ 2 + ⟪B1 T a�
 
 end Geometry
 
+section Final
+
+theorem nP_tilt (k : ℕ) : angle (nP T a₀ Q F k) up ≤ Q.tiltMax := by
+  obtain ⟨hs, w0, -, -⟩ := windows T h k
+  have hZ := h.zlo_pos _ hs
+  obtain ⟨zl, -⟩ := thr_up T a₀ h hS w0
+  have hH := (thr_norm_le T a₀ h hS w0).2
+  have hpos := thr_pos T a₀ h hS hs w0
+  rw [nP, nrm, angle_smul_left_of_pos _ _ (inv_pos.2 hpos), angle_up_eq_arctan (by linarith)]
+  refine le_trans ?_ (h.tilt _ hs)
+  apply Real.arctan_strictMono.monotone
+  exact div_le_div₀ (by linarith [norm_nonneg (horiz (thr T a₀ Q F k))]) hH hZ zl
+
+theorem eta_rate (k : ℕ) : |eta T a₀ Q C F (k + 1) - eta T a₀ Q C F k| ≤ δ * C.hingeRate := by
+  obtain ⟨hs, w0, w1, -⟩ := windows T h k
+  set s := ‖T.v k‖
+  refine (clamp_lip _ _ _ _).trans ?_
+  have e : π / 2 - phi T a₀ Q F (k + 1) - (π / 2 - phi T a₀ Q F k)
+      = -(phi T a₀ Q F (k + 1) - phi T a₀ Q F k) := by ring
+  rw [e, abs_neg]
+  have hM := M_pos T a₀ h hS hs w0
+  have key := abs_arctan_sub_le (u3_pos T a₀ h hS hs w0) (u3_pos T a₀ h hS hs w1) hM
+    (rho_ge T a₀ h hS hs w0) (rho_ge T a₀ h hS hs w1)
+  refine key.trans (le_trans ?_ (h.hinge s hs))
+  unfold hingeStep
+  have d3 : |⟪nP T a₀ Q F (k + 1), up⟫ - ⟪nP T a₀ Q F k, up⟫| ≤ dn P Q δ F s :=
+    (inner_up_sub_le _ _).trans (n_step T a₀ h hS hs w0 w1)
+  have d1 : |⟪B1 T a₀ Q F (k + 1), up⟫ - ⟪B1 T a₀ Q F k, up⟫| ≤ db P Q δ F s :=
+    (inner_up_sub_le _ _).trans (B_step_le T a₀ h hS k hs w0 w1).1
+  have : (|⟪nP T a₀ Q F (k + 1), up⟫ - ⟪nP T a₀ Q F k, up⟫|
+      + |⟪B1 T a₀ Q F (k + 1), up⟫ - ⟪B1 T a₀ Q F k, up⟫|) / M P Q δ F s
+      ≤ (db P Q δ F s + dn P Q δ F s) / M P Q δ F s :=
+    div_le_div_of_nonneg_right (by linarith) hM.le
+  have hpi : 0 ≤ π / 2 := by positivity
+  calc π / 2 * ((|⟪nP T a₀ Q F (k + 1), up⟫ - ⟪nP T a₀ Q F k, up⟫|
+        + |⟪B1 T a₀ Q F (k + 1), up⟫ - ⟪B1 T a₀ Q F k, up⟫|) / M P Q δ F s)
+      ≤ π / 2 * ((db P Q δ F s + dn P Q δ F s) / M P Q δ F s) :=
+        mul_le_mul_of_nonneg_left this hpi
+    _ = π / 2 * (db P Q δ F s + dn P Q δ F s) / M P Q δ F s := by ring
+
+theorem cam_up_angle (k : ℕ) :
+    angle (frameCam (B1 T a₀ Q F k) (nP T a₀ Q F k) (eta T a₀ Q C F k)) up
+      ≤ camOff P Q C δ F ‖T.v k‖ := by
+  obtain ⟨hs, w0, -, -⟩ := windows T h k
+  set s := ‖T.v k‖
+  obtain ⟨u1, -, -, x⟩ := B_facts T a₀ h hS k
+  have hn := nP_unit T a₀ h hS w0 hs
+  have h13 : ⟪B1 T a₀ Q F k, nP T a₀ Q F k⟫ = 0 := by
+    rw [← x]; exact inner_cross_left _ _
+  have hc : ‖frameCam (B1 T a₀ Q F k) (nP T a₀ Q F k) (eta T a₀ Q C F k)‖ = 1 :=
+    norm_cos_smul_add_sin_smul u1 hn h13 _
+  have hin : ⟪frameCam (B1 T a₀ Q F k) (nP T a₀ Q F k) (eta T a₀ Q C F k), up⟫
+      = Real.cos (eta T a₀ Q C F k) * ⟪B1 T a₀ Q F k, up⟫
+        + Real.sin (eta T a₀ Q C F k) * ⟪nP T a₀ Q F k, up⟫ := by
+    rw [frameCam, inner_add_left, real_inner_smul_left, real_inner_smul_left]
+  rw [inner_cam_up_eq (u3_pos T a₀ h hS hs w0)] at hin
+  -- the miss angle
+  obtain ⟨plo, phi_⟩ := phi_mem T a₀ h hS hs w0
+  have hmiss : |π / 2 - phi T a₀ Q F k - eta T a₀ Q C F k| ≤ miss P Q C δ F s := by
+    unfold eta miss
+    exact clamp_dist C.hingeLo_le (by linarith) (by linarith)
+  have hm := h.miss_le s hs
+  have hm0 : 0 ≤ miss P Q C δ F s := (abs_nonneg _).trans hmiss
+  have hcos : Real.cos (miss P Q C δ F s)
+      ≤ Real.cos (π / 2 - eta T a₀ Q C F k - phi T a₀ Q F k) := by
+    rw [show π / 2 - eta T a₀ Q C F k - phi T a₀ Q F k = π / 2 - phi T a₀ Q F k - eta T a₀ Q C F k
+      by ring, show Real.cos (π / 2 - phi T a₀ Q F k - eta T a₀ Q C F k)
+        = Real.cos |π / 2 - phi T a₀ Q F k - eta T a₀ Q C F k| from (Real.cos_abs _).symm]
+    have hmπ : miss P Q C δ F s ≤ π := by linarith [Real.pi_pos]
+    exact Real.cos_le_cos_of_nonneg_of_le_pi (abs_nonneg _) hmπ hmiss
+  have hcm : 0 ≤ Real.cos (miss P Q C δ F s) :=
+    Real.cos_nonneg_of_mem_Icc ⟨by linarith [Real.pi_pos], hm⟩
+  have hρ := rho_ge T a₀ h hS hs w0
+  have hge : M P Q δ F s * Real.cos (miss P Q C δ F s)
+      ≤ ⟪frameCam (B1 T a₀ Q F k) (nP T a₀ Q F k) (eta T a₀ Q C F k), up⟫ := by
+    rw [hin]
+    have hM := M_pos T a₀ h hS hs w0
+    calc M P Q δ F s * Real.cos (miss P Q C δ F s)
+        ≤ √(⟪nP T a₀ Q F k, up⟫ ^ 2 + ⟪B1 T a₀ Q F k, up⟫ ^ 2) * Real.cos (miss P Q C δ F s) :=
+          mul_le_mul_of_nonneg_right hρ hcm
+      _ ≤ _ := mul_le_mul_of_nonneg_left (by unfold phi at hcos; exact hcos) (Real.sqrt_nonneg _)
+  rw [angle, hc, norm_up', mul_one, div_one]
+  exact Real.arccos_le_arccos hge
+
+/-- The underneath formation as a valid rigid-body quadrotor trajectory. -/
+noncomputable def traj : QuadTraj Q C δ :=
+  QuadTraj.ofPlan (kp T a₀ h hS) h.δ_pos.ne' (kp_hdir T a₀ h hS) (kp_mix T a₀ h hS)
+    (fun k => by rw [kp_b₃]; exact nP_tilt T a₀ h hS k)
+    (fun k => (kp_rate_le T a₀ h hS k).trans (h.rate _ (speed_mem T k)))
+    (fun k => by
+      obtain ⟨hs, w0, -, -⟩ := windows T h k
+      have := vP_le T a₀ h hS w0
+      have : sHi P δ ‖T.v k‖ ≤ P.vMax := min_le_left _ _
+      show ‖vP T a₀ F k‖ ≤ Q.speedEnv
+      linarith [h.speed])
+    (fun k => le_max_left _ _)
+    (fun k => max_le C.hingeLo_le (min_le_left _ _))
+    (fun k => eta_rate T a₀ h hS k)
+
+theorem traj_cam (k : ℕ) : (traj T a₀ h hS).cam k
+    = frameCam (B1 T a₀ Q F k) (nP T a₀ Q F k) (eta T a₀ Q C F k) := by
+  simp only [QuadTraj.cam, traj, QuadTraj.ofPlan]
+  rw [kp_b₃]; rfl
+
+/-- **Visibility in every frame** (camera on top, drone underneath). -/
+theorem traj_keeps : KeepsInView C P.size (traj T a₀ h hS) T := by
+  intro k
+  have hρ : ‖F.planPos T a₀ ((-d) • up) k - (T.p k + (-d) • up)‖ ≤ ρ P δ F :=
+    F.planPos_err_sharp T a₀ ((-d) • up) h.δ_pos hS.1 k
+  have hx : (traj T a₀ h hS).x k = F.planPos T a₀ ((-d) • up) k := rfl
+  set e := F.planPos T a₀ ((-d) • up) k - (T.p k + (-d) • up) with he
+  have hlos : T.p k - (traj T a₀ h hS).x k = d • up + -e := by rw [hx, he]; module
+  have hd := h.d_pos
+  have hdu : ‖d • up‖ = d := by rw [norm_smul, norm_up', Real.norm_of_nonneg hd.le, mul_one]
+  refine ⟨?_, ?_⟩
+  · rw [hlos]
+    refine (norm_add_le _ _).trans ?_
+    rw [hdu, norm_neg]; linarith [h.range]
+  · rw [traj_cam]
+    have t1 := cam_up_angle T a₀ h hS k
+    have t2 : angle up (T.p k - (traj T a₀ h hS).x k) ≤ μ P δ F d := by
+      rw [hlos, ← angle_smul_left_of_pos up _ hd]
+      have hlt : ‖-e‖ < ‖d • up‖ := by rw [norm_neg, hdu]; linarith [h.ρ_lt]
+      refine (angle_add_le_arcsin hlt).trans ?_
+      rw [norm_neg, hdu]
+      exact Real.arcsin_le_arcsin (div_le_div_of_nonneg_right hρ hd.le)
+    have := angle_le_angle_add_angle (frameCam (B1 T a₀ Q F k) (nP T a₀ Q F k)
+      (eta T a₀ Q C F k)) up (T.p k - (traj T a₀ h hS).x k)
+    linarith [h.see _ (speed_mem T k)]
+
+end Final
+
 end Under
 
 end VisionTracking
