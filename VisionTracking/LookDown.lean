@@ -89,7 +89,7 @@ theorem QuadTraj.tilt_ge_of_visible_below (d : QuadTraj Q C δ) (k : ℕ) {s h :
 a line of sight at depression `e` (the target below and ahead) can be held forever iff
 `e ≤ chaseTilt v + α - hingeLo`, together with the hinge's upper side. This is
 `steady_formation_iff` at elevation `-e`. -/
-theorem steady_look_down_iff {P : TargetParams} (hδ : 0 < δ) (p₀ w : E3) (hw : ‖w‖ = 1)
+theorem steady_look_down_iff {P : TargetParams} (hkn : Q.normalDrag = 0) (hδ : 0 < δ) (p₀ w : E3) (hw : ‖w‖ = 1)
     (hwu : ⟪w, up⟫ = 0) {v : ℝ} (hv : v ∈ Set.Icc P.vMin P.vMax) {e r : ℝ} (hr : 0 < r)
     (hrange : r ≤ C.detectRange P.size)
     (hsum : |chaseTilt Q v - e| ≤ π / 2)
@@ -101,7 +101,7 @@ theorem steady_look_down_iff {P : TargetParams} (hδ : 0 < δ) (p₀ w : E3) (hw
         KeepsInView C P.size d (levelTarget P hδ.le p₀ w hw hwu v hv)) ↔
       (e ≤ chaseTilt Q v + C.halfFov - C.hingeLo ∧
         chaseTilt Q v - C.hingeHi - C.halfFov ≤ e) := by
-  have key := steady_formation_iff (Q := Q) (C := C) hδ p₀ w hw hwu hv (el := -e) hr hrange
+  have key := steady_formation_iff (Q := Q) (C := C) hkn hδ p₀ w hw hwu hv (el := -e) hr hrange
     (by rwa [← sub_eq_add_neg]) hthrust htilt henv
   have hlos : Real.cos (-e) • w + Real.sin (-e) • up = Real.cos e • w - Real.sin e • up := by
     rw [Real.cos_neg, Real.sin_neg, neg_smul, ← sub_eq_add_neg]
@@ -211,7 +211,7 @@ The required tilt then pushes it along `w` faster than drag can balance: with
 `κ = sin p₀ (g - c V U) - c V² cos p₀` (`V = vT + U`) positive, the time in view is at most
 
   `N δ ≤ 2 U (cos p₀ + sin p₀) / κ`. -/
-theorem QuadTraj.forced_loss_time (d : QuadTraj Q C δ) (hδ : 0 < δ) {w : E3} (hw : ‖w‖ = 1)
+theorem QuadTraj.forced_loss_time (hkn : Q.normalDrag = 0) (d : QuadTraj Q C δ) (hδ : 0 < δ) {w : E3} (hw : ‖w‖ = 1)
     (hwu : ⟪w, up⟫ = 0) {p : ℕ → E3} {s h p₀ vT U : ℝ} {N : ℕ}
     (hs : 0 < C.detectRange s) (hh : 0 ≤ h) (hvT : 0 ≤ vT) (hU0 : 0 ≤ U)
     (hp0pos : 0 < p₀) (hp0 : p₀ ≤ Real.arcsin (h / C.detectRange s) + C.hingeLo - C.halfFov)
@@ -304,11 +304,11 @@ theorem QuadTraj.forced_loss_time (d : QuadTraj Q C δ) (hδ : 0 < δ) {w : E3} 
     set z := ⟪d.v k, up⟫
     have hA : 0 ≤ A := d.thrust_nonneg k
     have hu' : ⟪d.v (k + 1), w⟫ = u + δ * (A * B - Q.drag * nv * u) := by
-      rw [d.translational k]
+      rw [d.translational k, hkn, zero_mul, zero_mul, sub_zero]
       simp only [inner_add_left, inner_sub_left, real_inner_smul_left, huw]
       ring
     have hz' : ⟪d.v (k + 1), up⟫ = z + δ * (A * Z - Q.g - Q.drag * nv * z) := by
-      rw [d.translational k]
+      rw [d.translational k, hkn, zero_mul, zero_mul, sub_zero]
       simp only [inner_add_left, inner_sub_left, real_inner_smul_left, hup1]
       ring
     obtain ⟨-, -, -, hsz⟩ := hb k hk.le

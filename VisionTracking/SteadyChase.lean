@@ -73,7 +73,7 @@ theorem eq_of_smul_eq_smul_of_unit {f M : ℝ} {b B : E3} (hf : 0 ≤ f) (hM : 0
 nonzero and unchanged over step `k`, then whatever its motors do, its thrust axis at
 step `k` is the steady axis leaning by the chase tilt towards the direction of
 travel, and its collective thrust per unit mass is `√(g² + (c_D ‖v‖²)²)`. -/
-theorem b₃_eq_steadyAxis (d : QuadTraj Q C δ) (hδ : δ ≠ 0) (k : ℕ)
+theorem b₃_eq_steadyAxis (hkn : Q.normalDrag = 0) (d : QuadTraj Q C δ) (hδ : δ ≠ 0) (k : ℕ)
     (hsteady : d.v (k + 1) = d.v k) (hhor : ⟪d.v k, up⟫ = 0) (hv : d.v k ≠ 0) :
     d.b₃ k = steadyAxis (chaseTilt Q ‖d.v k‖) (‖d.v k‖⁻¹ • d.v k) := by
   set s := ‖d.v k‖ with hs
@@ -81,6 +81,7 @@ theorem b₃_eq_steadyAxis (d : QuadTraj Q C δ) (hδ : δ ≠ 0) (k : ℕ)
   set x := Q.drag * s ^ 2 / Q.g with hx
   have hthrust : (totalThrust (d.f k) / Q.mass) • d.b₃ k = Q.g • up + (Q.drag * s) • d.v k := by
     have h := d.translational k
+    rw [hkn, zero_mul, zero_mul, sub_zero] at h
     rw [hsteady] at h
     have h0 : δ • ((totalThrust (d.f k) / Q.mass) • d.b₃ k - Q.g • up
         - (Q.drag * ‖d.v k‖) • d.v k) = 0 := by
@@ -150,7 +151,7 @@ target ahead in its plane of travel at elevation `el` (that is, `p - x` is a pos
 multiple of `cos el · v̂ + sin el · e₃`), with `|θ + el| ≤ π/2`. Then the chase tilt
 `θ = chaseTilt ‖v‖` satisfies `lo - α ≤ θ + el ≤ hi + α`. This holds for every motor
 command and every attitude consistent with the dynamics. -/
-theorem steady_chase_window (d : QuadTraj Q C δ) (hδ : δ ≠ 0) (k : ℕ)
+theorem steady_chase_window (hkn : Q.normalDrag = 0) (d : QuadTraj Q C δ) (hδ : δ ≠ 0) (k : ℕ)
     (hsteady : d.v (k + 1) = d.v k) (hhor : ⟪d.v k, up⟫ = 0) (hv : d.v k ≠ 0)
     {s : ℝ} {p : E3} (hvis : Visible C s (d.x k) (d.cam k) p)
     {el r : ℝ} (hr : 0 < r)
@@ -160,7 +161,7 @@ theorem steady_chase_window (d : QuadTraj Q C δ) (hδ : δ ≠ 0) (k : ℕ)
       chaseTilt Q ‖d.v k‖ + el ≤ C.hingeHi + C.halfFov := by
   have hw : ‖‖d.v k‖⁻¹ • d.v k‖ = 1 := norm_smul_inv_norm hv
   have hwu : ⟪‖d.v k‖⁻¹ • d.v k, up⟫ = 0 := by rw [real_inner_smul_left, hhor, mul_zero]
-  have hb := b₃_eq_steadyAxis d hδ k hsteady hhor hv
+  have hb := b₃_eq_steadyAxis hkn d hδ k hsteady hhor hv
   generalize hwdef : ‖d.v k‖⁻¹ • d.v k = w at hlos hw hwu hb
   have hu : ‖Real.cos el • w + Real.sin el • up‖ = 1 :=
     norm_cos_smul_add_sin_smul hw norm_up hwu el

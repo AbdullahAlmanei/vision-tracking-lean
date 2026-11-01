@@ -99,6 +99,19 @@ noncomputable def miss : ℝ :=
   max 0 (max ((π / 2 - φlo P Q δ F s) - C.hingeHi) (C.hingeLo - (π / 2 - φhi P Q δ F s)))
 noncomputable def camOff : ℝ := Real.arccos (M P Q δ F s * Real.cos (miss P Q C δ F s))
 noncomputable def μ : ℝ := Real.arcsin (ρ P δ F / d)
+/-! ### Collective with the rotor-disc normal force -/
+/-- Speed window of the planned velocity. -/
+noncomputable def sLp : ℝ := sLo P δ s - εV P δ F
+noncomputable def sHp : ℝ := sHi P δ s + εV P δ F
+/-- Lower bound on `⟪vP, thr⟫`: the power of the planned thrust. -/
+noncomputable def VTlo : ℝ :=
+  Q.drag * sLp P δ F s ^ 3 - sHp P δ F s * (A P δ s + εD P δ F)
+    - Q.g * (sHi P δ s * Real.sin P.climbMax + εV P δ F)
+/-- Bounds on the collective `‖thr‖ + k_n ‖vP‖ ⟪vP, nP⟫`. -/
+noncomputable def Clo : ℝ :=
+  Tlo P Q δ F s + Q.normalDrag * min (sLp P δ F s * VTlo P Q δ F s / Thi P Q δ F s)
+    (sHp P δ F s * VTlo P Q δ F s / Tlo P Q δ F s)
+noncomputable def Chi : ℝ := Thi P Q δ F s + Q.normalDrag * sHp P δ F s ^ 2
 noncomputable def hingeStep : ℝ := π / 2 * (db P Q δ F s + dn P Q δ F s) / M P Q δ F s
 
 end Budget3
@@ -121,9 +134,9 @@ structure MasterIneq3 (P : TargetParams) (Q : QuadParams) (C : CameraParams) (δ
     Real.arctan (Hhi P Q δ F s / Zlo P Q δ F s) ≤ Q.tiltMax
   rate : ∀ s ∈ Set.Icc P.vMin P.vMax, Ωb P Q δ F s ≤ Q.rateMax
   mix_lo : ∀ s ∈ Set.Icc P.vMin P.vMax,
-    τrp P Q δ F s / (2 * Q.arm) + τyaw P Q δ F s / (4 * Q.kYaw) ≤ Q.mass * Tlo P Q δ F s / 4
+    τrp P Q δ F s / (2 * Q.arm) + τyaw P Q δ F s / (4 * Q.kYaw) ≤ Q.mass * Clo P Q δ F s / 4
   mix_hi : ∀ s ∈ Set.Icc P.vMin P.vMax,
-    Q.mass * Thi P Q δ F s / 4 + τrp P Q δ F s / (2 * Q.arm) + τyaw P Q δ F s / (4 * Q.kYaw)
+    Q.mass * Chi P Q δ F s / 4 + τrp P Q δ F s / (2 * Q.arm) + τyaw P Q δ F s / (4 * Q.kYaw)
       ≤ Q.fMotor
   miss_le : ∀ s ∈ Set.Icc P.vMin P.vMax, miss P Q C δ F s ≤ π / 2
   see : ∀ s ∈ Set.Icc P.vMin P.vMax, camOff P Q C δ F s + μ P δ F d ≤ C.halfFov

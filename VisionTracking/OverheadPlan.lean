@@ -604,9 +604,13 @@ theorem kin_hinge_rate (k : ℕ) :
       = tilt T a₀ Q F (k + 1) - tilt T a₀ Q F k by ring]
     linarith
 
+theorem kin_mix' (k : ℕ) :
+    MixerOK Q (Q.mass * (kin T a₀ h hS).collective k) ((kin T a₀ h hS).torque k) := by
+  rw [KinPlan.collective_of_kn _ h.kn_zero]; exact kin_mix T a₀ h hS k
+
 /-- **The overhead formation trajectory**: a valid rigid-body quadrotor trajectory. -/
 noncomputable def traj : QuadTraj Q C δ :=
-  QuadTraj.ofPlan (kin T a₀ h hS) h.δ_pos.ne' (kin_hdir T a₀ h hS) (kin_mix T a₀ h hS)
+  QuadTraj.ofPlan (kin T a₀ h hS) h.δ_pos.ne' (kin_hdir T a₀ h hS) (kin_mix' T a₀ h hS)
     (kin_tilt T a₀ h hS) (fun k => (kin_rate_le T a₀ h hS k).trans h.rate) (kin_speed T a₀ h hS)
     (fun k => (eta_mem T a₀ k).1) (fun k => (eta_mem T a₀ k).2)
     (kin_hinge_rate T a₀ h hS)

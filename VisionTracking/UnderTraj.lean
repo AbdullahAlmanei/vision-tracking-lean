@@ -398,25 +398,130 @@ theorem kp_torque_yaw_le : |((kp T a₀ h hS).torque k).ofLp 2| ≤ τyaw P Q δ
     have := mul_le_mul (a0.trans hr) (a1.trans hr) (abs_nonneg _) ((norm_nonneg _).trans hr)
     nlinarith
 
-theorem kp_mix : MixerOK Q (Q.mass * ‖(kp T a₀ h hS).thrust k‖) ((kp T a₀ h hS).torque k) := by
+omit T a₀ h hS in
+theorem min_le_ratio {V X N sL sH Vt Tl Th : ℝ} (hV1 : sL ≤ V) (hV2 : V ≤ sH) (hsL : 0 ≤ sL)
+    (hX : Vt ≤ X) (hN1 : Tl ≤ N) (hN2 : N ≤ Th) (hTl : 0 < Tl) :
+    min (sL * Vt / Th) (sH * Vt / Tl) ≤ V * X / N := by
+  have hN : 0 < N := hTl.trans_le hN1
+  have hTh : 0 < Th := hN.trans_le hN2
+  have hsH : 0 ≤ sH := (hsL.trans hV1).trans hV2
+  rcases le_or_gt 0 X with hX0 | hX0
+  · refine (min_le_left _ _).trans ?_
+    calc sL * Vt / Th ≤ sL * X / Th :=
+          div_le_div_of_nonneg_right (mul_le_mul_of_nonneg_left hX hsL) hTh.le
+      _ ≤ V * X / Th := div_le_div_of_nonneg_right (mul_le_mul_of_nonneg_right hV1 hX0) hTh.le
+      _ ≤ V * X / N := div_le_div_of_nonneg_left (mul_nonneg (hsL.trans hV1) hX0) hN hN2
+  · refine (min_le_right _ _).trans ?_
+    calc sH * Vt / Tl ≤ sH * X / Tl :=
+          div_le_div_of_nonneg_right (mul_le_mul_of_nonneg_left hX hsH) hTl.le
+      _ ≤ sH * X / N := by
+          rw [div_le_div_iff₀ hTl hN]
+          have : sH * X ≤ 0 := mul_nonpos_of_nonneg_of_nonpos hsH hX0.le
+          nlinarith
+      _ ≤ V * X / N :=
+          div_le_div_of_nonneg_right (mul_le_mul_of_nonpos_right hV2 hX0.le) hN.le
+
+omit hS in
+theorem sLp_nonneg {s : ℝ} (hs : s ∈ Set.Icc P.vMin P.vMax) : 0 ≤ sLp P δ F s := by
+  have hvh := h.vh_pos s hs
+  have hc : Real.cos P.climbMax ≤ 1 := Real.cos_le_one _
+  have hlo : 0 ≤ sLo P δ s := le_trans P.vMin_pos.le (le_max_left _ _)
+  unfold vh at hvh; unfold sLp
+  nlinarith [mul_le_mul_of_nonneg_left hc hlo]
+
+/-- **Power of the planned thrust.** -/
+theorem vP_thr_ge : VTlo P Q δ F ‖T.v k‖ ≤ ⟪vP T a₀ F k, thr T a₀ Q F k⟫ ∧
+    sLp P δ F ‖T.v k‖ ≤ ‖vP T a₀ F k‖ ∧ ‖vP T a₀ F k‖ ≤ sHp P δ F ‖T.v k‖ := by
+  obtain ⟨hs, w0, -, -⟩ := windows T h k
+  set s := ‖T.v k‖
+  have e := vP_err T a₀ h hS k
+  have hv1 : sLp P δ F s ≤ ‖vP T a₀ F k‖ := by
+    have := norm_le_insert' (T.v k) (vP T a₀ F k)
+    rw [norm_sub_rev] at this; unfold sLp; linarith [w0.1]
+  have hv2 : ‖vP T a₀ F k‖ ≤ sHp P δ F s := by unfold sHp; exact vP_le T a₀ h hS w0
+  have hsL : 0 ≤ sLp P δ F s := sLp_nonneg h hs
+  refine ⟨?_, hv1, hv2⟩
+  have hthr : thr T a₀ Q F k = F.planAcc T a₀ k + Q.g • up
+      + (Q.drag * ‖vP T a₀ F k‖) • vP T a₀ F k := rfl
+  rw [hthr, inner_add_right, inner_add_right, real_inner_smul_right, real_inner_smul_right,
+    real_inner_self_eq_norm_sq]
+  have a1 : -(sHp P δ F s * (A P δ s + εD P δ F)) ≤ ⟪vP T a₀ F k, F.planAcc T a₀ k⟫ := by
+    have := neg_abs_le ⟪vP T a₀ F k, F.planAcc T a₀ k⟫
+    have h2 := abs_real_inner_le_norm (vP T a₀ F k) (F.planAcc T a₀ k)
+    have h3 := planAcc_le T a₀ h hS w0
+    have h4 := mul_le_mul hv2 h3 (norm_nonneg _) (hsL.trans hv1 |>.trans hv2)
+    linarith
+  have a2 : -(s * Real.sin P.climbMax + εV P δ F) ≤ ⟪vP T a₀ F k, up⟫ := by
+    have hcl := (abs_le.1 (T.climb_le k)).1
+    have := inner_up_sub_le (vP T a₀ F k) (T.v k)
+    have h5 : |⟪vP T a₀ F k - T.v k, up⟫| ≤ εV P δ F := by
+      have := abs_real_inner_le_norm (vP T a₀ F k - T.v k) up
+      rw [norm_up', mul_one] at this; exact this.trans e
+    rw [inner_sub_left] at h5
+    linarith [(abs_le.1 h5).1]
+  have a2' : -(sHi P δ s * Real.sin P.climbMax + εV P δ F) ≤ ⟪vP T a₀ F k, up⟫ := by
+    have := mul_le_mul_of_nonneg_right w0.2 (sin_climb_nonneg P)
+    linarith
+  have a3 : Q.drag * sLp P δ F s ^ 3 ≤ Q.drag * ‖vP T a₀ F k‖ * ‖vP T a₀ F k‖ ^ 2 := by
+    have := pow_le_pow_left₀ hsL hv1 3
+    nlinarith [Q.drag_pos]
+  unfold VTlo
+  have := mul_le_mul_of_nonneg_left a2' Q.g_pos.le
+  nlinarith
+
+/-- **Collective bounds** with the rotor-disc normal force. -/
+theorem kp_collective : Clo P Q δ F ‖T.v k‖ ≤ (kp T a₀ h hS).collective k ∧
+    (kp T a₀ h hS).collective k ≤ Chi P Q δ F ‖T.v k‖ := by
+  obtain ⟨hs, w0, -, -⟩ := windows T h k
+  set s := ‖T.v k‖
+  obtain ⟨hX, hv1, hv2⟩ := vP_thr_ge T a₀ h hS k
+  have hT1 := thr_norm_ge T a₀ h hS w0
+  have hT2 := (thr_norm_le T a₀ h hS w0).1
+  have hTlo := Tlo_pos h hs
+  have hkn := Q.normalDrag_nonneg
+  have hcol : (kp T a₀ h hS).collective k = ‖thr T a₀ Q F k‖
+      + Q.normalDrag * ‖vP T a₀ F k‖ * ⟪vP T a₀ F k, nP T a₀ Q F k⟫ := by
+    simp only [KinPlan.collective]; rw [kp_thrust, kp_b₃]; rfl
+  have hsL : 0 ≤ sLp P δ F s := sLp_nonneg h hs
+  have hthr0 : 0 < ‖thr T a₀ Q F k‖ := hTlo.trans_le hT1
+  have hn : ⟪vP T a₀ F k, nP T a₀ Q F k⟫ = ⟪vP T a₀ F k, thr T a₀ Q F k⟫ / ‖thr T a₀ Q F k‖ := by
+    rw [nP, nrm, real_inner_smul_right]; field_simp
+  rw [hcol]
+  constructor
+  · unfold Clo
+    have key : min (sLp P δ F s * VTlo P Q δ F s / Thi P Q δ F s)
+        (sHp P δ F s * VTlo P Q δ F s / Tlo P Q δ F s)
+        ≤ ‖vP T a₀ F k‖ * ⟪vP T a₀ F k, nP T a₀ Q F k⟫ := by
+      rw [hn, ← mul_div_assoc]
+      exact min_le_ratio hv1 hv2 hsL hX hT1 hT2 hTlo
+    have := mul_le_mul_of_nonneg_left key hkn
+    nlinarith
+  · unfold Chi
+    have h1 : ⟪vP T a₀ F k, nP T a₀ Q F k⟫ ≤ ‖vP T a₀ F k‖ := by
+      have := real_inner_le_norm (vP T a₀ F k) (nP T a₀ Q F k)
+      rwa [nP_unit T a₀ h hS w0 hs, mul_one] at this
+    have h2 : ‖vP T a₀ F k‖ * ⟪vP T a₀ F k, nP T a₀ Q F k⟫ ≤ sHp P δ F s ^ 2 := by
+      have := mul_le_mul_of_nonneg_left h1 (norm_nonneg (vP T a₀ F k))
+      nlinarith [pow_le_pow_left₀ (norm_nonneg _) hv2 2]
+    have := mul_le_mul_of_nonneg_left h2 hkn
+    nlinarith
+
+theorem kp_mix : MixerOK Q (Q.mass * (kp T a₀ h hS).collective k) ((kp T a₀ h hS).torque k) := by
   obtain ⟨hs, w0, -, -⟩ := windows T h k
   have hy := kp_torque_yaw_le T a₀ h hS k
   have hm := Q.mass_pos
   have hL : 0 < 2 * Q.arm := by linarith [Q.arm_pos]
   have hk : 0 < 4 * Q.kYaw := by linarith [Q.kYaw_pos]
-  have hT1 : Tlo P Q δ F ‖T.v k‖ ≤ ‖(kp T a₀ h hS).thrust k‖ := by
-    rw [kp_thrust]; exact thr_norm_ge T a₀ h hS w0
-  have hT2 : ‖(kp T a₀ h hS).thrust k‖ ≤ Thi P Q δ F ‖T.v k‖ := by
-    rw [kp_thrust]; exact (thr_norm_le T a₀ h hS w0).1
+  obtain ⟨hT1, hT2⟩ := kp_collective T a₀ h hS k
   have b0 : |((kp T a₀ h hS).torque k).ofLp 0| / (2 * Q.arm) ≤ τrp P Q δ F ‖T.v k‖ / (2 * Q.arm) :=
     div_le_div_of_nonneg_right (kp_torque_rp_le T a₀ h hS k).1 hL.le
   have b1 : |((kp T a₀ h hS).torque k).ofLp 1| / (2 * Q.arm) ≤ τrp P Q δ F ‖T.v k‖ / (2 * Q.arm) :=
     div_le_div_of_nonneg_right (kp_torque_rp_le T a₀ h hS k).2 hL.le
   have b2 : |((kp T a₀ h hS).torque k).ofLp 2| / (4 * Q.kYaw) ≤ τyaw P Q δ F ‖T.v k‖ / (4 * Q.kYaw) :=
     div_le_div_of_nonneg_right hy hk.le
-  have m1 : Q.mass * Tlo P Q δ F ‖T.v k‖ / 4 ≤ Q.mass * ‖(kp T a₀ h hS).thrust k‖ / 4 := by
+  have m1 : Q.mass * Clo P Q δ F ‖T.v k‖ / 4 ≤ Q.mass * (kp T a₀ h hS).collective k / 4 := by
     have := mul_le_mul_of_nonneg_left hT1 hm.le; linarith
-  have m2 : Q.mass * ‖(kp T a₀ h hS).thrust k‖ / 4 ≤ Q.mass * Thi P Q δ F ‖T.v k‖ / 4 := by
+  have m2 : Q.mass * (kp T a₀ h hS).collective k / 4 ≤ Q.mass * Chi P Q δ F ‖T.v k‖ / 4 := by
     have := mul_le_mul_of_nonneg_left hT2 hm.le; linarith
   have lo := h.mix_lo _ hs
   have hi := h.mix_hi _ hs

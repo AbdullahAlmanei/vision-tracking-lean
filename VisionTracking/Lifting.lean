@@ -64,6 +64,11 @@ noncomputable def rate (k : ℕ) : E3 := δ⁻¹ • toF (p.b₁ k) (p.b₂ k) (
 noncomputable def thrust (k : ℕ) : E3 :=
   δ⁻¹ • (p.v (k + 1) - p.v k) + Q.g • up + (Q.drag * ‖p.v k‖) • p.v k
 
+/-- Required collective thrust per unit mass: the thrust plus what cancels the rotor-disc
+normal force `-k_n ‖v‖ ⟪v, b₃⟫ b₃`. -/
+noncomputable def collective (k : ℕ) : ℝ :=
+  ‖p.thrust k‖ + Q.normalDrag * ‖p.v k‖ * ⟪p.v k, p.b₃ k⟫
+
 /-- Required body torque. -/
 noncomputable def torque (k : ℕ) : E3 :=
   Q.inertia (δ⁻¹ • (p.rate (k + 1) - p.rate k)) + cross (p.rate k) (Q.inertia (p.rate k))
@@ -92,6 +97,11 @@ theorem rate_eq (k : ℕ) : p.rate k = δ⁻¹ • psiVec (sigmaVec (toF (p.b₁
 
 end KinPlan
 
+/-- With no normal force, the collective is the thrust. -/
+theorem KinPlan.collective_of_kn (p : KinPlan Q C δ) (hkn : Q.normalDrag = 0) (k : ℕ) :
+    p.collective k = ‖p.thrust k‖ := by
+  simp [KinPlan.collective, hkn]
+
 theorem inertiaInv_inertia (Q : QuadParams) (y : E3) : Q.inertiaInv (Q.inertia y) = y := by
   have := Q.Jx_pos.ne'; have := Q.Jy_pos.ne'; have := Q.Jz_pos.ne'
   ext i; fin_cases i <;> simp [QuadParams.inertia, QuadParams.inertiaInv] <;> field_simp
@@ -101,7 +111,7 @@ tilt, body rates, speed and hinge fit the quadrotor's limits is a valid rigid-bo
 trajectory with exactly the planned positions, frames and hinge. -/
 noncomputable def QuadTraj.ofPlan (p : KinPlan Q C δ) (hδ : δ ≠ 0)
     (hdir : ∀ k, p.thrust k = ‖p.thrust k‖ • p.b₃ k)
-    (hmix : ∀ k, MixerOK Q (Q.mass * ‖p.thrust k‖) (p.torque k))
+    (hmix : ∀ k, MixerOK Q (Q.mass * p.collective k) (p.torque k))
     (htilt : ∀ k, angle (p.b₃ k) up ≤ Q.tiltMax)
     (hrate : ∀ k, ‖p.rate k‖ ≤ Q.rateMax)
     (hspeed : ∀ k, ‖p.v k‖ ≤ Q.speedEnv)
@@ -120,7 +130,8 @@ noncomputable def QuadTraj.ofPlan (p : KinPlan Q C δ) (hδ : δ ≠ 0)
   translational k := by
     obtain ⟨-, hF, -⟩ := Classical.choose_spec (exists_motors_of_wrench (Q := Q) _ _
       (hmix k).1 (hmix k).2.1 (hmix k).2.2.1 (hmix k).2.2.2)
-    rw [hF, mul_div_cancel_left₀ _ Q.mass_pos.ne', ← hdir k, KinPlan.thrust]
+    rw [hF, mul_div_cancel_left₀ _ Q.mass_pos.ne', KinPlan.collective, add_sub_cancel_right,
+      ← hdir k, KinPlan.thrust]
     simp only [smul_add, smul_sub, smul_smul, mul_inv_cancel₀ hδ, one_smul]
     abel
   rotational k := by
@@ -153,7 +164,7 @@ section OfPlan
 
 variable (p : KinPlan Q C δ) (hδ : δ ≠ 0)
   (hdir : ∀ k, p.thrust k = ‖p.thrust k‖ • p.b₃ k)
-  (hmix : ∀ k, MixerOK Q (Q.mass * ‖p.thrust k‖) (p.torque k))
+  (hmix : ∀ k, MixerOK Q (Q.mass * p.collective k) (p.torque k))
   (htilt : ∀ k, angle (p.b₃ k) up ≤ Q.tiltMax) (hrate : ∀ k, ‖p.rate k‖ ≤ Q.rateMax)
   (hspeed : ∀ k, ‖p.v k‖ ≤ Q.speedEnv) (hge : ∀ k, C.hingeLo ≤ p.η k)
   (hle : ∀ k, p.η k ≤ C.hingeHi) (hηrate : ∀ k, |p.η (k + 1) - p.η k| ≤ δ * C.hingeRate)

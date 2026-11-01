@@ -90,7 +90,7 @@ theorem rate_yaw (k : ℕ) : (p.rate k).ofLp 2 = δ⁻¹ * ⟪p.b₃ k, p.ω k�
 end RotPlan
 
 /-- **Lifting for rotation plans.** -/
-noncomputable def QuadTraj.ofRotPlan (p : RotPlan Q C δ) (hδ : δ ≠ 0)
+noncomputable def QuadTraj.ofRotPlan (hkn : Q.normalDrag = 0) (p : RotPlan Q C δ) (hδ : δ ≠ 0)
     (hdir : ∀ k, p.thrust k = ‖p.thrust k‖ • p.b₃ k)
     (hmix : ∀ k, MixerOK Q (Q.mass * ‖p.thrust k‖) (p.torque k))
     (htilt : ∀ k, angle (p.b₃ k) up ≤ Q.tiltMax)
@@ -111,7 +111,8 @@ noncomputable def QuadTraj.ofRotPlan (p : RotPlan Q C δ) (hδ : δ ≠ 0)
   translational k := by
     obtain ⟨-, hF, -⟩ := Classical.choose_spec (exists_motors_of_wrench (Q := Q) _ _
       (hmix k).1 (hmix k).2.1 (hmix k).2.2.1 (hmix k).2.2.2)
-    rw [hF, mul_div_cancel_left₀ _ Q.mass_pos.ne', ← hdir k, RotPlan.thrust]
+    rw [hF, mul_div_cancel_left₀ _ Q.mass_pos.ne', hkn, zero_mul, zero_mul, sub_zero, ← hdir k,
+      RotPlan.thrust]
     simp only [smul_add, smul_sub, smul_smul, mul_inv_cancel₀ hδ, one_smul]
     abel
   rotational k := by

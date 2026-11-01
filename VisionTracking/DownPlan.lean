@@ -446,7 +446,7 @@ theorem rp_mix (k : ℕ) :
 
 /-- **The yaw-free overhead trajectory**: a valid rigid-body quadrotor trajectory. -/
 noncomputable def traj : QuadTraj Q C δ :=
-  QuadTraj.ofRotPlan (rp T a₀ h hS) h.δ_pos.ne' (rp_hdir T a₀ h hS) (rp_mix T a₀ h hS)
+  QuadTraj.ofRotPlan h.kn_zero (rp T a₀ h hS) h.δ_pos.ne' (rp_hdir T a₀ h hS) (rp_mix T a₀ h hS)
     (fun k => by rw [rp_b₃]; exact (tilt_le T a₀ h hS k).trans h.tilt)
     (fun k => (rp_rate_le T a₀ h hS k).trans h.rate)
     (fun k => (vP_norm_le T a₀ h hS k).trans h.speed)

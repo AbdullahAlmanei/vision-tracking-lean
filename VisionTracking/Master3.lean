@@ -97,7 +97,11 @@ theorem traj_causal (hlag : ∀ i < 4, F.h i = 0) (h : MasterIneq3 P Q C δ F d)
     have h4 : (kp T a₀ h hS).η j = (kp T' a₀ h hS').η j := eeta j (by omega)
     rw [hx, hv, h1, h2, h3, erate j hj, h4]
   · simp only [traj, QuadTraj.ofPlan]
-    exact motors_congr (by rw [ethrust j hj]) (etorque j hj)
+    have hb3 : (kp T a₀ h hS).b₃ j = (kp T' a₀ h hS').b₃ j := by
+      rw [kp_b₃, kp_b₃, en j (by omega)]
+    have hvj : (kp T a₀ h hS).v j = (kp T' a₀ h hS').v j := e1 j (by omega)
+    exact motors_congr (by simp only [KinPlan.collective]; rw [ethrust j hj, hb3, hvj])
+      (etorque j hj)
       (kp_mix T a₀ h hS j).1 (kp_mix T a₀ h hS j).2.1 (kp_mix T a₀ h hS j).2.2.1
       (kp_mix T a₀ h hS j).2.2.2 (kp_mix T' a₀ h hS' j).1 (kp_mix T' a₀ h hS' j).2.1
       (kp_mix T' a₀ h hS' j).2.2.1 (kp_mix T' a₀ h hS' j).2.2.2

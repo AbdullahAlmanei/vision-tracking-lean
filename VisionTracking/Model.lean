@@ -190,6 +190,10 @@ structure QuadParams where
   kYaw : ℝ
   /-- Quadratic drag coefficient per unit mass: drag acceleration `c_D ‖v‖ v`. -/
   drag : ℝ
+  /-- Rotor-disc and frame normal-force coefficient per unit mass: the air pushes on the
+  rotor plane with acceleration `-k_n ‖v‖ ⟪v, b₃⟫ b₃` (centre of pressure at the centre of
+  mass). `k_n = 0` is the isotropic ("rods") model. -/
+  normalDrag : ℝ
   /-- Flight-envelope limit on the tilt of `b₃` from vertical. -/
   tiltMax : ℝ
   /-- Flight-controller limit on the body rate `‖Ω‖`. -/
@@ -207,6 +211,7 @@ structure QuadParams where
   /-- The quad can hover with margin. -/
   hover : mass * g < 4 * fMotor
   drag_pos : 0 < drag
+  normalDrag_nonneg : 0 ≤ normalDrag
   tiltMax_pos : 0 < tiltMax
   tiltMax_lt : tiltMax < Real.pi / 2
   rateMax_pos : 0 < rateMax
@@ -252,7 +257,8 @@ structure QuadTraj (Q : QuadParams) (C : CameraParams) (δ : ℝ) where
   η : ℕ → ℝ
   steps : StepsWith δ x v
   translational : ∀ k, v (k + 1) = v k + δ •
-    ((totalThrust (f k) / Q.mass) • b₃ k - Q.g • up - (Q.drag * ‖v k‖) • v k)
+    ((totalThrust (f k) / Q.mass - Q.normalDrag * ‖v k‖ * ⟪v k, b₃ k⟫) • b₃ k - Q.g • up
+      - (Q.drag * ‖v k‖) • v k)
   rotational : ∀ k, Ω (k + 1) =
     Ω k + δ • Q.inertiaInv (Q.torque (f k) - cross (Ω k) (Q.inertia (Ω k)))
   attitude : ∀ k,

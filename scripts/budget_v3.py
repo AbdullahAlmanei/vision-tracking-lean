@@ -71,8 +71,13 @@ def at_speed(P, Q, C, dt, F, d, s):
     mu = math.asin(rho / d) if rho < d else float('inf')
     hstep = math.pi / 2 * (db + dn) / M
     need = trp / (2 * Q['arm']) + tyaw / (4 * Q['kYaw'])
+    # collective with the rotor-disc normal force (Budget3.sLp/sHp/VTlo/Clo/Chi)
+    kn = Q.get('kn', 0.0); sLp = sLo - eV; sHp = sHi + eV
+    VTlo = c * sLp ** 3 - sHp * (A + eD) - g * (sHi * sg + eV)
+    Clo = Tlo + kn * min(sLp * VTlo / Thi, sHp * VTlo / Tlo)
+    Chi = Thi + kn * sHp ** 2
     ok.update(tilt=math.atan(Hhi / Zlo) <= Q['tiltMax'], rate=Om <= Q['rateMax'],
-              mix_lo=need <= Q['mass'] * Tlo / 4, mix_hi=Q['mass'] * Thi / 4 + need <= Q['fMotor'],
+              mix_lo=need <= Q['mass'] * Clo / 4, mix_hi=Q['mass'] * Chi / 4 + need <= Q['fMotor'],
               miss_le=miss <= math.pi / 2, see=camOff + mu <= C['halfFov'], hinge=hstep <= dt * C['hingeRate'])
     return ok, dict(bank=math.degrees(math.asin(sb)), miss=math.degrees(miss), camOff=math.degrees(camOff),
                     Om=Om, angacc=dOm / dt, tau_rp=trp, tau_yaw=tyaw, need=need, avail=Q['mass'] * Tlo / 4,
@@ -93,7 +98,7 @@ def master_ineq3(P, Q, C, dt, F, d, ns=60):
     return fails, worst
 
 BASE = dict(g=9.81, mass=1.5, Jx=0.012, Jy=0.012, Jz=0.02, arm=0.18, fMotor=6 * 1.5 * 9.81 / 4,
-            kYaw=0.02, drag=0.008, tiltMax=math.radians(85), rateMax=20.0, speedEnv=90.0)
+            kYaw=0.02, drag=0.008, kn=0.0, tiltMax=math.radians(85), rateMax=20.0, speedEnv=90.0)
 CAM = dict(halfFov=math.radians(60), fovH=math.radians(120), widthPx=3840, minPx=8,
            hingeLo=math.radians(30), hingeHi=math.radians(70), hingeRate=8.0)
 

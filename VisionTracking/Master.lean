@@ -117,10 +117,11 @@ theorem traj_causal (hlag : ∀ i < 4, F.h i = 0) (h : MasterIneq P Q C δ F d)
     have hη : (kin T a₀ h hS).η j = (kin T' a₀ h hS').η j := eη j (by omega)
     rw [hx, hv, h1, h2, h3, erate j hj, hη]
   · simp only [traj, QuadTraj.ofPlan]
-    exact motors_congr (by rw [ethrust j hj]) (etorque j hj)
-      (kin_mix T a₀ h hS j).1 (kin_mix T a₀ h hS j).2.1 (kin_mix T a₀ h hS j).2.2.1
-      (kin_mix T a₀ h hS j).2.2.2 (kin_mix T' a₀ h hS' j).1 (kin_mix T' a₀ h hS' j).2.1
-      (kin_mix T' a₀ h hS' j).2.2.1 (kin_mix T' a₀ h hS' j).2.2.2
+    exact motors_congr (by rw [KinPlan.collective_of_kn _ h.kn_zero,
+        KinPlan.collective_of_kn _ h.kn_zero, ethrust j hj]) (etorque j hj)
+      (kin_mix' T a₀ h hS j).1 (kin_mix' T a₀ h hS j).2.1 (kin_mix' T a₀ h hS j).2.2.1
+      (kin_mix' T a₀ h hS j).2.2.2 (kin_mix' T' a₀ h hS' j).1 (kin_mix' T' a₀ h hS' j).2.1
+      (kin_mix' T' a₀ h hS' j).2.2.1 (kin_mix' T' a₀ h hS' j).2.2.2
 
 end Overhead
 
@@ -144,11 +145,11 @@ theorem master_sufficient (F : FIR) (hlag : ∀ i < 4, F.h i = 0) {d : ℝ}
 
 /-- **Speed necessity** (the necessary side proved so far): maintainability, even with
 full information, forces `vMax ≤ dirSpeed u` for every admissible direction `u`. -/
-theorem speed_necessary (hδ : 0 < δ) (hfine : δ * Q.drag * Q.speedEnv ≤ 1 / 2) (p₀ : E3)
+theorem speed_necessary (hkn : Q.normalDrag = 0) (hδ : 0 < δ) (hfine : δ * Q.drag * Q.speedEnv ≤ 1 / 2) (p₀ : E3)
     {u : E3} (hu : ‖u‖ = 1) (hclimb : |⟪u, up⟫| ≤ Real.sin P.climbMax)
     (h : MaintainableFullInfo P Q C δ p₀ (P.vMax • u) 0) : P.vMax ≤ Q.dirSpeed u := by
   by_contra hlt
-  exact not_maintainable_of_dirSpeed_lt hδ hfine p₀ hu hclimb (lt_of_not_ge hlt) h
+  exact not_maintainable_of_dirSpeed_lt hkn hδ hfine p₀ hu hclimb (lt_of_not_ge hlt) h
 
 /-- **Planner errors vanish with the step.** For a fixed planner filter, the error terms
 `εD = H₁ δ j`, `εV = H₂ δ² j`, `ρ = H₃ δ³ j` and `εT` tend to zero as `δ → 0`, so the
@@ -175,14 +176,14 @@ theorem planner_errors_tendsto_zero (P : TargetParams) (Q : QuadParams) (F : FIR
 camera sees a target ahead at elevation `el` only if
 `lo - α ≤ θ(v) + el ≤ hi + α`; against a straight level target this is also
 sufficient (`steady_formation_iff`). -/
-theorem steady_necessary {d : QuadTraj Q C δ} (hδ : δ ≠ 0) (k : ℕ)
+theorem steady_necessary (hkn : Q.normalDrag = 0) {d : QuadTraj Q C δ} (hδ : δ ≠ 0) (k : ℕ)
     (hsteady : d.v (k + 1) = d.v k) (hhor : ⟪d.v k, up⟫ = 0) (hv : d.v k ≠ 0)
     {s : ℝ} {p : E3} (hvis : Visible C s (d.x k) (d.cam k) p) {el r : ℝ} (hr : 0 < r)
     (hlos : p - d.x k = r • (Real.cos el • (‖d.v k‖⁻¹ • d.v k) + Real.sin el • up))
     (hsum : |chaseTilt Q ‖d.v k‖ + el| ≤ π / 2) :
     C.hingeLo - C.halfFov ≤ chaseTilt Q ‖d.v k‖ + el ∧
       chaseTilt Q ‖d.v k‖ + el ≤ C.hingeHi + C.halfFov :=
-  steady_chase_window d hδ k hsteady hhor hv hvis hr hlos hsum
+  steady_chase_window hkn d hδ k hsteady hhor hv hvis hr hlos hsum
 
 /-- The Euler fine-step condition is part of the master budget. -/
 theorem MasterIneq.fine_step {P : TargetParams} {Q : QuadParams} {C : CameraParams} {δ : ℝ}

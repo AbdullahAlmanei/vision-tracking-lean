@@ -61,7 +61,7 @@ theorem QuadTraj.thrust_le (d : QuadTraj Q C δ) (k : ℕ) :
   linarith [d.motor_le k 0, d.motor_le k 1, d.motor_le k 2, d.motor_le k 3]
 
 /-- One-step bound on the velocity component along `u`. -/
-theorem dir_step_le (d : QuadTraj Q C δ) (hδ : 0 < δ) {u : E3} (hu : ‖u‖ = 1) (k : ℕ) :
+theorem dir_step_le (hkn : Q.normalDrag = 0) (d : QuadTraj Q C δ) (hδ : 0 < δ) {u : E3} (hu : ‖u‖ = 1) (k : ℕ) :
     ⟪d.v (k + 1), u⟫ ≤
       ⟪d.v k, u⟫ + δ * (Q.push u - Q.drag * ‖d.v k‖ * ⟪d.v k, u⟫) := by
   have hF0 := d.thrust_nonneg k
@@ -73,7 +73,7 @@ theorem dir_step_le (d : QuadTraj Q C δ) (hδ : 0 < δ) {u : E3} (hu : ‖u‖ 
           mul_le_mul_of_nonneg_left (hreach.trans (le_max_right _ _)) hF0
       _ ≤ Q.maxAcc * max 0 (Q.reach u) :=
           mul_le_mul_of_nonneg_right hF1 (le_max_left _ _)
-  rw [d.translational k, inner_add_left, real_inner_smul_left, inner_sub_left,
+  rw [d.translational k, hkn, zero_mul, zero_mul, sub_zero, inner_add_left, real_inner_smul_left, inner_sub_left,
     inner_sub_left, real_inner_smul_left, real_inner_smul_left, real_inner_smul_left]
   unfold QuadParams.push
   have : ⟪up, u⟫ = ⟪up, u⟫ := rfl
@@ -81,11 +81,11 @@ theorem dir_step_le (d : QuadTraj Q C δ) (hδ : 0 < δ) {u : E3} (hu : ‖u‖ 
 
 /-- The excess of the velocity component along `u` over any `V` with
 `push u ≤ c_D V²` contracts by the factor `1 - 2 δ c_D V` each step. -/
-theorem dir_excess_step (d : QuadTraj Q C δ) (hδ : 0 < δ)
+theorem dir_excess_step (hkn : Q.normalDrag = 0) (d : QuadTraj Q C δ) (hδ : 0 < δ)
     (hfine : δ * Q.drag * Q.speedEnv ≤ 1 / 2) {u : E3} (hu : ‖u‖ = 1) {V : ℝ}
     (hV0 : 0 < V) (hVenv : V ≤ Q.speedEnv) (hV : Q.push u ≤ Q.drag * V ^ 2) (k : ℕ) :
     ⟪d.v (k + 1), u⟫ - V ≤ (1 - 2 * δ * Q.drag * V) * max 0 (⟪d.v k, u⟫ - V) := by
-  have hstep := dir_step_le d hδ hu k
+  have hstep := dir_step_le hkn d hδ hu k
   set s := ⟪d.v k, u⟫
   set n := ‖d.v k‖
   have hc := Q.drag_pos
@@ -134,7 +134,7 @@ theorem dir_excess_step (d : QuadTraj Q C δ) (hδ : 0 < δ)
 
 /-- Consequently the quad advances along `u` at most `k δ V` plus a bounded
 transient from its initial excess speed. -/
-theorem dir_displacement_le (d : QuadTraj Q C δ) (hδ : 0 < δ)
+theorem dir_displacement_le (hkn : Q.normalDrag = 0) (d : QuadTraj Q C δ) (hδ : 0 < δ)
     (hfine : δ * Q.drag * Q.speedEnv ≤ 1 / 2) {u : E3} (hu : ‖u‖ = 1) {V : ℝ}
     (hV0 : 0 < V) (hVenv : V ≤ Q.speedEnv) (hV : Q.push u ≤ Q.drag * V ^ 2) (k : ℕ) :
     ⟪d.x k - d.x 0, u⟫ ≤ k * δ * V + max 0 (⟪d.v 0, u⟫ - V) / (2 * Q.drag * V) := by
@@ -143,7 +143,7 @@ theorem dir_displacement_le (d : QuadTraj Q C δ) (hδ : 0 < δ)
   set e : ℕ → ℝ := fun j => max 0 (⟪d.v j, u⟫ - V) with he
   have hcontract : ∀ j, e (j + 1) ≤ (1 - 2 * δ * Q.drag * V) * e j := by
     intro j
-    have h1 := dir_excess_step d hδ hfine hu hV0 hVenv hV j
+    have h1 := dir_excess_step hkn d hδ hfine hu hV0 hVenv hV j
     have hdcV : δ * Q.drag * V ≤ 1 / 2 :=
       le_trans (mul_le_mul_of_nonneg_left hVenv (by positivity)) hfine
     exact max_le (mul_nonneg (by linarith) (le_max_left _ _)) h1
@@ -199,7 +199,7 @@ theorem straightTarget_escapes_of_displacement (P : TargetParams) {δ : ℝ} (h�
 /-- **Directional escape.** If the target may fly along `u` (within its climb limit)
 faster than the quad can sustain along `u`, no full-information strategy keeps it in
 view, whatever the motors, attitude and camera do. -/
-theorem not_maintainable_of_dirSpeed_lt (hδ : 0 < δ)
+theorem not_maintainable_of_dirSpeed_lt (hkn : Q.normalDrag = 0) (hδ : 0 < δ)
     (hfine : δ * Q.drag * Q.speedEnv ≤ 1 / 2) (p₀ : E3) {u : E3} (hu : ‖u‖ = 1)
     (hclimb : |⟪u, up⟫| ≤ Real.sin P.climbMax) (hslow : Q.dirSpeed u < P.vMax) :
     ¬ MaintainableFullInfo P Q C δ p₀ (P.vMax • u) 0 := by
@@ -226,7 +226,7 @@ theorem not_maintainable_of_dirSpeed_lt (hδ : 0 < δ)
         have h3 : max 0 (Q.push u) ≤ Q.drag * V ^ 2 := by
           rw [h1, div_le_iff₀ hc] at h2; linarith
         exact (le_max_right _ _).trans h3
-      exact ⟨V, _, hVlt, dir_displacement_le d hδ hfine hu hV0 (by linarith) hpush⟩
+      exact ⟨V, _, hVlt, dir_displacement_le hkn d hδ hfine hu hV0 (by linarith) hpush⟩
     · refine ⟨Q.speedEnv, 0, henv, ?_⟩
       have hv : ∀ k, ⟪d.v k, u⟫ ≤ Q.speedEnv := fun k => by
         have := real_inner_le_norm (d.v k) u

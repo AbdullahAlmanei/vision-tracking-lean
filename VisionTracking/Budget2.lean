@@ -59,6 +59,8 @@ open Budget2 in
 structure MasterIneq2 (P : TargetParams) (Q : QuadParams) (C : CameraParams) (δ : ℝ)
     (F : FIR) (d : ℝ) : Prop where
   δ_pos : 0 < δ
+  /-- This version uses the isotropic drag model (no rotor-disc normal force). -/
+  kn_zero : Q.normalDrag = 0
   d_pos : 0 < d
   fine : δ * Q.drag * Q.speedEnv ≤ 1 / 2
   εV_lt : εV P δ F < P.vMin

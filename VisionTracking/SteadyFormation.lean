@@ -128,7 +128,7 @@ theorem exists_aligned {b₃ u z : E3} (h₃ : ‖b₃‖ = 1) (hu : ‖u‖ = 1
     field_simp
 
 /-- **Steady formation, exact characterization.** -/
-theorem steady_formation_iff (hδ : 0 < δ) (p₀ w : E3) (hw : ‖w‖ = 1) (hwu : ⟪w, up⟫ = 0)
+theorem steady_formation_iff (hkn : Q.normalDrag = 0) (hδ : 0 < δ) (p₀ w : E3) (hw : ‖w‖ = 1) (hwu : ⟪w, up⟫ = 0)
     {v : ℝ} (hv : v ∈ Set.Icc P.vMin P.vMax) {el r : ℝ} (hr : 0 < r)
     (hrange : r ≤ C.detectRange P.size)
     (hsum : |chaseTilt Q v + el| ≤ π / 2)
@@ -148,7 +148,7 @@ theorem steady_formation_iff (hδ : 0 < δ) (p₀ w : E3) (hw : ‖w‖ = 1) (hw
     rw [hvw, smul_smul, inv_mul_cancel₀ hv0.ne', one_smul]
   constructor
   · rintro ⟨d, hdv, hlos, hkeep⟩
-    have h := steady_chase_window d hδ.ne' 0 (by rw [hdv, hdv]) (by
+    have h := steady_chase_window hkn d hδ.ne' 0 (by rw [hdv, hdv]) (by
         rw [hdv, real_inner_smul_left, hwu, mul_zero]) (by rw [hdv]; exact hvw0)
       (hkeep 0) hr (el := el) (by rw [hlos 0, hdv 0, hwnorm]) (by rw [hdv 0, hvw]; exact hsum)
     rwa [hdv 0, hvw] at h
@@ -227,7 +227,7 @@ theorem steady_formation_iff (hδ : 0 < δ) (p₀ w : E3) (hw : ‖w‖ = 1) (hw
       translational := fun k => by
         have hF : totalThrust (fun _ : Fin 4 => Q.mass * M / 4) / Q.mass = M := by
           have := Q.mass_pos.ne'; unfold totalThrust; field_simp; ring
-        rw [hF, hthr]; simp
+        rw [hF, hkn, zero_mul, zero_mul, sub_zero, hthr]; simp
       rotational := fun k => by
         have h0 : Q.torque (fun _ : Fin 4 => Q.mass * M / 4) = 0 := by
           ext i; fin_cases i <;> simp [QuadParams.torque]

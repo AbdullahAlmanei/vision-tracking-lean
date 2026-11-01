@@ -24,7 +24,7 @@ namespace VisionTracking
 variable {P : TargetParams} {Q : QuadParams} {C : CameraParams} {δ : ℝ}
 
 /-- **Directional speed wall, trajectory form.** -/
-theorem no_traj_keeps_of_dirSpeed_lt (hδ : 0 < δ)
+theorem no_traj_keeps_of_dirSpeed_lt (hkn : Q.normalDrag = 0) (hδ : 0 < δ)
     (hfine : δ * Q.drag * Q.speedEnv ≤ 1 / 2) (p₀ : E3) {u : E3} (hu : ‖u‖ = 1)
     (hclimb : |⟪u, up⟫| ≤ Real.sin P.climbMax) (hslow : Q.dirSpeed u < P.vMax)
     (d : QuadTraj Q C δ) :
@@ -46,7 +46,7 @@ theorem no_traj_keeps_of_dirSpeed_lt (hδ : 0 < δ)
         have h3 : max 0 (Q.push u) ≤ Q.drag * V ^ 2 := by
           rw [h1, div_le_iff₀ hc] at h2; linarith
         exact (le_max_right _ _).trans h3
-      exact ⟨V, _, hVlt, dir_displacement_le d hδ hfine hu hV0 (by linarith) hpush⟩
+      exact ⟨V, _, hVlt, dir_displacement_le hkn d hδ hfine hu hV0 (by linarith) hpush⟩
     · refine ⟨Q.speedEnv, 0, henv, ?_⟩
       have hv : ∀ k, ⟪d.v k, u⟫ ≤ Q.speedEnv := fun k => by
         have := real_inner_le_norm (d.v k) u
@@ -64,13 +64,13 @@ theorem straightTarget_startsSteady (hδ : 0 < δ) (p₀ : E3) {u : E3} (hu : �
     (straightTarget P hδ.le p₀ u hu hclimb).StartsSteady p₀ (P.vMax • u) 0 :=
   ⟨straightTarget_startsAt P hδ.le p₀ u hu hclimb, by simp [straightTarget]⟩
 
-theorem not_maintainableSteady_of_dirSpeed_lt (hδ : 0 < δ)
+theorem not_maintainableSteady_of_dirSpeed_lt (hkn : Q.normalDrag = 0) (hδ : 0 < δ)
     (hfine : δ * Q.drag * Q.speedEnv ≤ 1 / 2) (p₀ : E3) {u : E3} (hu : ‖u‖ = 1)
     (hclimb : |⟪u, up⟫| ≤ Real.sin P.climbMax) (hslow : Q.dirSpeed u < P.vMax) :
     ¬ MaintainableSteady P Q C δ p₀ (P.vMax • u) 0 := by
   rintro ⟨σ, hσ⟩
   have hS := straightTarget_startsSteady (P := P) hδ p₀ hu hclimb
-  exact no_traj_keeps_of_dirSpeed_lt hδ hfine p₀ hu hclimb hslow _ (hσ _ hS)
+  exact no_traj_keeps_of_dirSpeed_lt hkn hδ hfine p₀ hu hclimb hslow _ (hσ _ hS)
 
 /-- **The necessary inequality**: in every admissible direction, the drone's drag-limited
 directional speed covers the target's top speed. -/
@@ -80,19 +80,20 @@ def NecIneq3 (P : TargetParams) (Q : QuadParams) : Prop :=
 /-- **Master inequality, version 3, necessary side.** If every target starting in steady
 flight can be kept in view (by any strategy with full information, indeed by any
 trajectory), then `NecIneq3` holds. -/
-theorem master_necessary3 (hδ : 0 < δ) (hfine : δ * Q.drag * Q.speedEnv ≤ 1 / 2)
+theorem master_necessary3 (hkn : Q.normalDrag = 0) (hδ : 0 < δ) (hfine : δ * Q.drag * Q.speedEnv ≤ 1 / 2)
     (h : ∀ p₀ v₀ a₀ : E3, MaintainableSteady P Q C δ p₀ v₀ a₀) : NecIneq3 P Q := by
   intro u hu hclimb
   by_contra hlt
-  exact not_maintainableSteady_of_dirSpeed_lt hδ hfine 0 hu hclimb (not_le.1 hlt)
+  exact not_maintainableSteady_of_dirSpeed_lt hkn hδ hfine 0 hu hclimb (not_le.1 hlt)
     (h 0 (P.vMax • u) 0)
 
-/-- **P3 bracket.** `MasterIneq3` is sufficient, `NecIneq3` is necessary. -/
+/-- **P3 bracket** for the isotropic drag model (`k_n = 0`): `MasterIneq3` is sufficient,
+`NecIneq3` is necessary. -/
 theorem p3_bracket (F : FIR) (hlag : ∀ i < 4, F.h i = 0) {d : ℝ}
-    (hδ : 0 < δ) (hfine : δ * Q.drag * Q.speedEnv ≤ 1 / 2) :
+    (hkn : Q.normalDrag = 0) (hδ : 0 < δ) (hfine : δ * Q.drag * Q.speedEnv ≤ 1 / 2) :
     (MasterIneq3 P Q C δ F d → ∀ p₀ v₀ a₀ : E3, MaintainableSteady P Q C δ p₀ v₀ a₀) ∧
     ((∀ p₀ v₀ a₀ : E3, MaintainableSteady P Q C δ p₀ v₀ a₀) → NecIneq3 P Q) :=
   ⟨fun h p₀ v₀ a₀ => master_sufficient3 F hlag h p₀ v₀ a₀,
-    master_necessary3 hδ hfine⟩
+    master_necessary3 hkn hδ hfine⟩
 
 end VisionTracking
