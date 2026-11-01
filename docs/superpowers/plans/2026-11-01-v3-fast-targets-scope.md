@@ -80,8 +80,8 @@ and fast dives. The camera is not binding.
    - Re-prove the second difference of the planned acceleration as ≤ (filter constant)·δ²·snap
      instead of TV·δ·J.
    - This is the main lever on mix_lo.
-   - Decision for the user: the snap value to assume for the RC aircraft; about
-     10–20 m/s⁴ is a guess.
+   - Snap value: 10–20 m/s⁴ for the RC aircraft, default 15 m/s⁴ (accepted by the user,
+     2026-11-01). It stays a free parameter in Lean.
 2. **Speed-dependent budget.** A single worst case over the band is too loose, because the
    bank bound needs the large ‖T‖ of high speed. So MasterIneq3 quantifies over the local
    speed s ∈ [vMin − εV, vMax + εV]: ∀ s, cond(s), which is a one-dimensional check.
@@ -111,6 +111,55 @@ and fast dives. The camera is not binding.
    to turns, and pairs with the bank term in item 6. Also prove the "forward-facing top
    camera cannot see up at speed" lemma, which says the backward-facing camera is forced.
 10. Blueprint chapter, README, and an ledger entry.
+
+## Side study: looking down from above with a forward-facing top camera
+
+The question: the drone is well above the target and the camera faces forward. Must it
+speed up, overtake and lose the target? How long can it keep it in view?
+
+**Geometry (any yaw).** angle(b₃, LOS) ≤ (90° − η_lo) + α. So a target at angle θ below the
+forward horizon is visible only if the tilt satisfies p ≥ θ + η_lo − α. Looking down
+costs tilt, and tilt costs horizontal force.
+
+**Free tilt from drag.** Following a straight, level target at speed v takes
+p = chaseTilt(v) = atan(c·v²/g) with no relative acceleration. So a depression is held
+forever iff
+
+    e ≤ e*(v) = chaseTilt(v) + α − η_lo
+
+which is the existing `steady_formation_iff` with el = −e (already proved). With η_lo = 30°
+and α = 45°, e* is 33°, 51°, 68° and 83° at 20, 30, 40 and 55 m/s. Fast targets give
+almost straight-down views for free.
+
+**Forced loss.** The target is in range only if sin e ≥ h/D, where h is the height above the
+target and D the detection range. So when h > D·sin e*(v), every view is steeper than e*.
+- The tilt then exceeds the drag balance and produces a forward acceleration of at least
+  g·tan(θ + η_lo − α) − c·v_D².
+- The drone closes in, passes overhead, and after that the target is behind it. Seeing
+  behind needs p ≥ 180° − e_b + η_lo − α, which soon exceeds tiltMax, or the target
+  leaves the detection range.
+- Rough numbers (scratch/above2.py, D = 382 m, α = 45°): at 20 m/s and h = 300 m the view is
+  lost after about 17 s; at 30 m/s about 53 s; at 370 m height about 6–11 s.
+  - At 40 m/s nothing is lost below about 350 m.
+  - At 55 m/s the target is never forced out.
+
+**Loophole (honest).** The bound assumes the horizontal thrust stays along the track.
+A drone that *orbits* turns its tilt toward the centre: centripetal acceleration
+ω²·r ≥ g·tan p0 gives tilt with no net forward drift, so the view could in principle be
+held indefinitely.
+- The orbit costs rate (yaw rate ω), speed (|v ± ω·r|), and drag at that speed.
+- This is the "weaving drones" open item.
+
+**Lean items.**
+- (a) look_down_tilt: visible with hinge ≥ η_lo ⇒ tilt ≥ θ + η_lo − α. This is a triangle
+  inequality on angles and does not depend on yaw.
+- (b) A corollary of steady_formation_iff: the formula for e*.
+- (c) forced_loss_time: for a straight, level target at speed v and a drone whose
+  horizontal thrust stays in the vertical track plane (track-aligned), staying at least
+  h > D·sin e*(v) above loses the target within N steps.
+  - N is explicit, from a discrete convexity bound: x_{k+1} − 2x_k + x_{k−1} ≥ δ²κ on a
+    window of width W gives N·δ ≤ 2·√(2W/κ), plus a cruise phase.
+- (d) Orbiting sufficiency and its cost: open, part of the weaving item.
 
 ## Out of scope (recorded caveats)
 
