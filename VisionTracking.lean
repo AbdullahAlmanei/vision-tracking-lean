@@ -28,4 +28,5 @@ import VisionTracking.DownPlan
 import VisionTracking.Master2
 import VisionTracking.LookDown
 import VisionTracking.PlannerSnap
+import VisionTracking.BodyRate
 import VisionTracking.Plan
