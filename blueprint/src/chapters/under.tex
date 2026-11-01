@@ -1,0 +1,148 @@
+\chapter{Fast targets from underneath (master inequality, version 3)}
+\label{chap:under}
+
+The camera sits on top of the airframe, looking $30$--$70^\circ$ up on a pitch hinge. The
+drone flies under the target. Its camera faces backwards relative to travel, so the
+nose-down pitch needed for speed swings the camera up and over: at $20$\,m/s it looks back
+and up, and at $55$\,m/s it looks straight up.
+
+\begin{lemma}[Snap limit and steady start]
+\label{lem:snap}
+\lean{VisionTracking.TargetParams, VisionTracking.TargetTraj.StartsSteady,
+  VisionTracking.TargetTraj.accExt_second_le, VisionTracking.FIR.planAcc_second_snap}
+\leanok
+\uses{thm:sharp-planner}
+The target's jerk changes by at most $\delta\cdot\mathrm{snap}$ per step. If the target
+starts in steady flight, the planned acceleration has second differences at most
+$H_0\delta^2\,\mathrm{snap}$.
+\end{lemma}
+
+\begin{theorem}[Body rates componentwise]
+\label{thm:body-rate}
+\lean{VisionTracking.aVec, VisionTracking.aVec_ofLp, VisionTracking.aVec_ofLp_diff,
+  VisionTracking.KinPlan.rate_eq_aVec, VisionTracking.psiVec_sub_le}
+\leanok
+\uses{thm:lifting}
+For consecutive frames $b,c$ the body rate is $\delta^{-1}\psi(a)$, where $a$ is the
+antisymmetric part of $[\inner{b_i}{c_j}]$. Each component of $a$ is an inner product of a
+frame \emph{difference} with frame vectors. For $\norm a,\norm{a'}\le\rho<1$ and
+$G=1/\sqrt{1-\rho^2}$, $\norm{\psi(a')-\psi(a)}\le G\norm{a'-a}+(G-1)\rho$.
+\end{theorem}
+
+\begin{theorem}[Lateral-locked frame]
+\label{thm:lateral}
+\lean{VisionTracking.latRaw, VisionTracking.lat1, VisionTracking.lat2,
+  VisionTracking.cross_lat1_lat2, VisionTracking.lat_aVec_rp, VisionTracking.lat_aVec_yaw,
+  VisionTracking.lat_aVec_rp_second, VisionTracking.lat_aVec_yaw_second,
+  VisionTracking.lat_steps_crude, VisionTracking.lat_up_coords}
+\leanok
+\uses{thm:body-rate}
+With thrust direction $n$ and lateral reference $\ell$, define
+$b_2=\mathrm{nrm}(-\ell+\inner\ell n\,n)$, $b_1=b_2\times n$, and $b_3=n$. This is defined at
+every pitch whenever $\lvert\inner\ell n\rvert\le s_b<1$. The roll and pitch components satisfy
+$a_0^2+a_1^2\le\norm{\Delta n}^2$, and the yaw component satisfies
+$\lvert a_2\rvert\le(\norm{\Delta\ell}+s_b\norm{\Delta n})/\sqrt{1-s_b^2}$. Their changes are
+bounded by $\norm{n'\times\Delta^2n}$, $\norm{\Delta^2\ell}$ and products of first
+differences.
+\end{theorem}
+
+\begin{lemma}[Target and plan at the current speed]
+\label{lem:local}
+\lean{VisionTracking.norm_targetAcc_le_loc, VisionTracking.thrustStar_up_loc,
+  VisionTracking.thrustStar_along_v_ge, VisionTracking.thrustStar_along_heading_ge,
+  VisionTracking.abs_inner_targetAcc_perp_le, VisionTracking.Under.thr_err,
+  VisionTracking.Under.thr_norm_ge, VisionTracking.Under.lateral_le,
+  VisionTracking.Under.forward_ge, VisionTracking.Under.n_cross_second,
+  VisionTracking.Under.h_second, VisionTracking.Under.window}
+\leanok
+\uses{lem:snap}
+All bounds take the current target speed $s$ and hold over the three steps one control step
+uses. At high speed the drag makes the thrust large, so the bank $\arcsin s_b$ stays near
+$30^\circ$ even in a $350$\,m turn at $55$\,m/s.
+\end{lemma}
+
+\begin{lemma}[Hinge geometry]
+\label{lem:hinge}
+\lean{VisionTracking.clamp_lip, VisionTracking.clamp_dist, VisionTracking.inner_cam_up_eq,
+  VisionTracking.abs_arctan_sub_le}
+\leanok
+With in-plane pitch $\varphi=\arctan(u_1/u_3)$, a hinge angle $\eta$ gives
+$\inner{\mathrm{cam}}{e_3}=\rho\cos(\pi/2-\eta-\varphi)$. The clamp to the hinge range is
+1-Lipschitz, and $\varphi$ moves by at most $\tfrac\pi2\norm{\Delta(u_3,u_1)}/\rho_{\min}$.
+\end{lemma}
+
+\begin{definition}[Master budget, version 3]
+\label{def:budget3}
+\lean{VisionTracking.MasterIneq3, VisionTracking.Budget3.sb, VisionTracking.Budget3.θa,
+  VisionTracking.Budget3.yaw2, VisionTracking.Budget3.τrp, VisionTracking.Budget3.τyaw,
+  VisionTracking.Budget3.camOff, VisionTracking.Budget3.hingeStep}
+\leanok
+\uses{thm:lateral, lem:local, lem:hinge}
+Conditions at every speed of the band: positive vertical thrust, a bank below $90^\circ$,
+close consecutive frames, tilt, body rate, mixer (low and high), hinge rate, and the
+visibility condition $\mathrm{camOff}+\mu\le\alpha$, with
+$\mathrm{camOff}=\arccos(\sqrt{1-s_b^2}\cos\mathrm{miss})$.
+\end{definition}
+
+\begin{theorem}[Master inequality, version 3, sufficient side]
+\label{thm:master3}
+\lean{VisionTracking.master_sufficient3, VisionTracking.MaintainableSteady,
+  VisionTracking.SteadyStrategy, VisionTracking.Under.traj, VisionTracking.Under.traj_keeps,
+  VisionTracking.Under.traj_causal, VisionTracking.Under.kp, VisionTracking.Under.kp_mix,
+  VisionTracking.Under.dav_le, VisionTracking.Under.B_step_le, VisionTracking.Under.eta_rate,
+  VisionTracking.Under.cam_up_angle}
+\leanok
+\uses{def:budget3, thm:master2}
+If \texttt{MasterIneq3} holds for a planner with four frames of lag, a position-only
+strategy keeps every target that starts in steady flight in view in every frame. It flies
+underneath as a valid rigid-body quadrotor.
+\end{theorem}
+
+\begin{remark}[Where it holds]
+\texttt{scripts/budget\_v3.py} mirrors \texttt{Budget3} definition by definition. The
+setup is a $20$--$55$\,m/s target with turn radius $350$\,m, snap $15$\,m/s$^4$ and
+vertical acceleration $1.5$\,m/s$^2$; a $1.5$\,kg quadrotor; and a sparse three-tap
+quadratic-exact planner.
+\begin{itemize}
+  \item With the base quadrotor, \texttt{MasterIneq3} holds for jerk at most
+        $3$\,m/s$^3$ with $5^\circ$ dives, and jerk $1$ with $10^\circ$ dives.
+  \item With yaw coefficient $0.03$ and a $22$\,cm arm, it holds for jerk at most $3$ and
+        $2$ respectively.
+  \item Jerk $5$ fails on torque at low collective thrust.
+\end{itemize}
+\end{remark}
+
+\chapter{Looking down from above}
+\label{chap:lookdown}
+
+\begin{lemma}[Yaw-free look-down tilt]
+\label{lem:lookdown}
+\lean{VisionTracking.QuadTraj.angle_b₃_cam, VisionTracking.QuadTraj.tilt_ge_of_visible,
+  VisionTracking.angle_up_ge_of_below, VisionTracking.QuadTraj.tilt_ge_of_visible_below}
+\leanok
+A target at least $h$ below the drone, within detection range $D$, forces the tilt to be at
+least $\arcsin(h/D)+\eta_{\mathrm{lo}}-\alpha$, whatever the yaw.
+\end{lemma}
+
+\begin{theorem}[Free tilt from drag]
+\label{thm:lookdown-steady}
+\lean{VisionTracking.steady_look_down_iff}
+\leanok
+\uses{lem:lookdown}
+Behind a straight level target at speed $v$, a depression $e$ is held forever iff
+$e\le\mathrm{chaseTilt}(v)+\alpha-\eta_{\mathrm{lo}}$ (together with the hinge's upper side).
+\end{theorem}
+
+\begin{theorem}[Forced loss]
+\label{thm:forced-loss}
+\lean{VisionTracking.QuadTraj.forced_loss_time, VisionTracking.planar_tilt,
+  VisionTracking.angle_ge_of_opposite, VisionTracking.QuadTraj.angle_b₃_step_le,
+  VisionTracking.inner_eq_track_coords}
+\leanok
+\uses{lem:lookdown}
+Suppose a drone keeps its thrust axis in the vertical plane of the track, cannot flip its
+tilt in one step, and keeps its velocity within $U$ of the target's. If it must keep a
+target at least $h$ below it in view, then it does so for at most
+$2U(\cos p_0+\sin p_0)/\kappa$, with $\kappa=\sin p_0(g-cVU)-cV^2\cos p_0$. Orbiting or
+weaving drones are not covered.
+\end{theorem}

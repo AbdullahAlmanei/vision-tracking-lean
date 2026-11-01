@@ -21,8 +21,8 @@ reasons.
 All three are fixed in version 2 (Chapter~\ref{chap:yawfree}): sharp Abel-type planner
 constants, a separate vertical manoeuvre limit, and the yaw-free down-looking camera
 with a parallel-transported frame. \texttt{MasterIneq2} is satisfiable for targets up to
-25--30\,m/s with jerk at most 2\,m/s$^3$. The reference 51\,m/s aircraft still needs
-the hinged camera at high tilt, which is open.
+25--30\,m/s with jerk at most 2\,m/s$^3$. Version 3 (Chapter~\ref{chap:under}) puts the
+camera on top and flies underneath, reaching 55\,m/s for jerk at most 3\,m/s$^3$.
 \end{remark}
 
 \begin{remark}[Smoothing family and paper numbers]
@@ -43,4 +43,13 @@ avoided on average. Turning this into a per-frame visibility bound is open.
 For manoeuvring targets, only the overhead formation is proved sufficient. Holding
 an offset that rotates with the target's heading (chasing from behind) costs extra
 acceleration of order $d\omega_T^2$, and is the natural next sufficiency theorem.
+\end{remark}
+
+\begin{remark}[Open after version 3]
+\begin{itemize}
+  \item Necessity for version 3, and a steady-turn bank-angle necessity theorem.
+  \item Orbiting and weaving drones in the look-down forced-loss theorem.
+  \item Rotor thrust that drops with airspeed.
+  \item A ground plane for the underneath formation.
+\end{itemize}
 \end{remark}
