@@ -140,3 +140,36 @@ Possible next steps:
    thrust-direction rates, using the full visibility geometry.
 2. **Accept the bracket.** Write up P3 with its explicit gap and the design rules it
    implies (yaw coefficient and arm length set the jerk ceiling).
+
+## Sharper necessity (game-style torque bound): lemma chain and evaluation (2026-11-01)
+
+The chain:
+
+- **L1, window averaging.** If ‖x_drone − p_target‖ ≤ E, the triangle-weighted mean of
+  (drone accel − target accel) over m steps is at most 4E/(mδ)². This follows from the
+  exact identity for x_{k+m} − 2x_k + x_{k−m}.
+- **L2, thrust must change.** A target reversing its lateral acceleration ±A forces the
+  windowed mean of (thrust − drag) to change by at least 2A − 8E/τ² − (drag change).
+- **L3, attitude must change.** Thrust vectors confined to a cone of half-angle θ about b
+  change sideways by at most 2·T·sin θ, so the attitude must sweep
+  Θ ≈ asin((2A − …)/(2T)).
+- **L4, rates.** Sweeping Θ within Λ = 2τ + flip forces rate ≥ Θ/Λ (from
+  `angle_b₃_step_le`), and angular acceleration ≥ 4Θ/Λ² if the motion starts and ends at
+  rest.
+- **Assembly.** An admissible, steadily starting reversing target escapes every trajectory
+  unless rateMax ≥ Θ/Λ.
+
+Evaluated at the reference parameters, optimising the window τ: the forced rate is
+0.002–0.007 rad/s and the forced angular acceleration is about 10⁻³ rad/s². This holds
+even when the drone must stay within 30 m of its formation point. Our sufficient design
+uses about 1 rad/s.
+
+The reason is structural. With hundreds of metres of slack (570 m range, 60° half-FOV,
+hinge), a drone may respond to target maneuvers over 7–30 s windows. A tight formation
+responds within about 1 s.
+
+**Verdict.** In this regime no torque or rate necessity of practical size exists. The
+agility (jerk) limits of `MasterIneq3` are a property of tight-formation designs, not of
+physics. The chain is correct and formalizable, but it would yield a practically vacuous
+theorem here. It becomes meaningful only when the allowed slack E is a few metres (very
+narrow FOV or very short detection range).
