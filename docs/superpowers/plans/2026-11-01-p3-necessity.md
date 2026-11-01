@@ -251,3 +251,35 @@ The remaining gap comes from two sources:
 
 The second source is the one remaining analysis lever: a bound on Δa that stays exact for
 steady rotations.
+
+## Aerodynamic forces on the frame (2026-11-01, raised by the user)
+
+The model has rotor thrust along b₃ and isotropic quadratic drag, so the frame is
+aerodynamically "rods". At 35–55 m/s the dynamic pressure is 750–1850 Pa, so frame and
+arm aerodynamics are first-order.
+
+**Flat-frame or arm normal force.** Model: −k_n‖v‖⟨v, b₃⟩b₃, with the centre of pressure
+at the centre of mass. The force acts along b₃, so the thrust direction and all the
+attitude and camera geometry are unchanged; only the motor collective changes, by
+k_n‖v‖²·sin(pitch − flight-path angle). Prototype (budget_v3 with collective
+adjustment):
+
+| k_n | Steady top speed (±10°) | `MasterIneq3` at 55 m/s |
+|---|---|---|
+| 0 | ≈ 69 m/s | jerk ≤ 3–5 |
+| 0.01 | ≈ 56 m/s | fails (mix_hi) |
+| 0.02 | ≈ 46 m/s | fails (mix_hi) |
+
+A frame pitched 70° into a 55 m/s wind is an air brake, so the motors saturate. The low
+collective in dives does improve, but the top-speed loss dominates.
+
+**Lift needs a wing at incidence.** A real lift/glide benefit needs a lifting surface whose
+chord stays near the wind direction at cruise, at a design incidence angle i_w relative to
+the rotor plane: the quad-plane or tail-sitter regime. Then:
+- lift (⊥ v) carries weight and part of the turn force;
+- the motors mainly cancel drag;
+- the aerodynamic force is no longer along b₃, so attitude and lift couple implicitly.
+
+This is a qualitative model change, with i_w as a new design parameter like the hinge range.
+A rough sizing: supporting the weight of 1.5 kg at C_L = 0.5 needs about 0.04 m² at 35 m/s
+and about 0.016 m² at 55 m/s.
