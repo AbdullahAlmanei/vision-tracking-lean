@@ -1,0 +1,602 @@
+<title>Buy Headroom, Not Cleverness</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a single technical-report column, tables and code break out wider on desktop. */
+:root {
+  --paper: #f5f6f3; --ink: #1a2126; --muted: #5a656c; --rule: #d5d9d4;
+  --accent: #b4461b; --panel: #eaece7; --code: #e6e9e3;
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #121619; --ink: #e3e7e4; --muted: #9aa5a9; --rule: #2c3438;
+  --accent: #f0875a; --panel: #1b2125; --code: #1f272b; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #121619; --ink: #e3e7e4; --muted: #9aa5a9; --rule: #2c3438;
+  --accent: #f0875a; --panel: #1b2125; --code: #1f272b; color-scheme: dark }
+body { background: var(--paper); color: var(--ink); font: 17px/1.62 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 80px; }
+main { max-width: 46rem; margin: 0 auto; }
+.kicker { font: 700 0.72rem/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); margin: 0 0 14px; }
+h1 { font: 800 clamp(2rem, 6vw, 3.1rem)/1.05 var(--display); letter-spacing: -0.02em;
+  text-wrap: balance; margin: 0 0 12px; }
+h1 + p { font: 500 1.15rem/1.4 var(--display); color: var(--muted); margin-top: 0; }
+h2 { font: 700 1.45rem/1.2 var(--display); margin: 2.6em 0 0.6em; padding-top: 0.8em;
+  border-top: 2px solid var(--ink); text-wrap: balance; }
+h3 { font: 700 1.08rem/1.3 var(--display); margin: 1.8em 0 0.4em; }
+p, li { max-width: 68ch; }
+a { color: var(--accent); }
+strong { font-weight: 600; }
+hr { border: 0; border-top: 1px solid var(--rule); margin: 2.4em 0; }
+code { font: 0.84em var(--mono); background: var(--code); padding: 0.08em 0.32em; border-radius: 3px; }
+blockquote { margin: 1.4em 0; padding: 0.2em 1.1em; border-left: 3px solid var(--accent);
+  background: var(--panel); }
+.tbl { overflow-x: auto; margin: 1.2em 0 1.6em; }
+table { border-collapse: collapse; font: 0.86rem/1.4 var(--display); font-variant-numeric: tabular-nums;
+  min-width: 100%; }
+th { text-align: left; font-weight: 700; border-bottom: 2px solid var(--ink); padding: 7px 10px 6px 0; }
+td { border-bottom: 1px solid var(--rule); padding: 7px 10px 7px 0; vertical-align: top; }
+td code { font-size: 0.8rem; }
+em:first-child:last-child { color: var(--muted); }
+@media (min-width: 900px) { .tbl { margin-left: -3rem; margin-right: -3rem; } }
+</style>
+<main>
+<p class="kicker">Engineering guide · Vision tracking</p>
+<h1>Buy Headroom, Not Cleverness</h1>
+<p><strong>An engineering guide to quadrotor pursuit of fast fixed-wing aircraft</strong></p>
+<p><em>Draft, 2026-11-02. Every bound quoted as "proved" or "certified" is machine-checked in
+Lean 4 (repository <code>AbdullahAlmanei/vision-tracking-lean</code>, no <code>sorry</code>, standard axioms
+only). Every number is reproducible with the scripts named in the appendix.</em></p>
+<h2>Abstract</h2>
+<p>A quadrotor has to keep a fast radio-controlled fixed-wing aircraft (3.5 m long, 2.5 m span,
+up to 55 m/s, turning down to a 350 m radius) inside the image of one camera in every
+frame. We give conditions that are proved sufficient for this, and conditions that are
+proved necessary for any strategy, even one that knows the target's future. We then sweep
+the design parameters through those bounds.</p>
+<p>The results reduce to three design rules:
+1. <strong>Top speed is set by thrust and air.</strong> Thrust-to-weight is the strongest lever. The
+   proved speed wall scales as (F_max² / (k_n·c))^¼.
+2. <strong>Agility is set by yaw authority when total thrust is low.</strong> The worst case is a
+   35 m/s dive, not a 55 m/s dash. Thrust-to-weight does not help there; yaw authority and
+   low inertia do.
+3. <strong>The camera is solved by geometry.</strong> Fly underneath, with a rear-facing top camera on a
+   30–70° hinge, or a fixed mount with a 120° lens.</p>
+<p>Strategies we tested as alternatives to plain copying either lost or needed physically
+impossible torque: looser formations, smoothing planners, capped trackers, winged frames
+and weaving. For the baseline 1.5 kg vehicle the certified envelope reaches 52–53 m/s,
+against a proved physical wall of 57.7 m/s.</p>
+<hr />
+<h2>1. The answer on one page</h2>
+<p><strong>Baseline vehicle:</strong>
+- 1.5 kg, thrust-to-weight 6, plus layout, 18 cm arm, yaw coefficient 0.02;
+- inertia (0.012, 0.012, 0.02) kg·m², parasitic drag c = 0.008 m⁻¹;
+- rotor-disc normal-force coefficient k_n = 0.01 m⁻¹ (about 0.02 m² of effective normal
+  area);
+- rear-facing top camera on a 30–70° hinge, 120° field of view.</p>
+<p><strong>Baseline target:</strong>
+- 20 m/s up to v_max, turn radius 350 m;
+- along-track acceleration 2 m/s², vertical acceleration 1.5 m/s²;
+- snap 15 m/s⁴, jerk 1–5 m/s³, climbs and dives up to ±5° or ±10°.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Answer for the baseline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fastest target any strategy could follow (proved wall)</td>
+<td><strong>57.7 m/s</strong></td>
+</tr>
+<tr>
+<td>Fastest target our formation is proved to follow, ±5° dives, jerk ≤ 5</td>
+<td><strong>52.1 m/s</strong></td>
+</tr>
+<tr>
+<td>Same, ±10° dives, jerk ≤ 3</td>
+<td><strong>52.1 m/s</strong></td>
+</tr>
+<tr>
+<td>Same, ±10° dives, jerk 5</td>
+<td><strong>33.4 m/s</strong> (yaw-limited, see §5)</td>
+</tr>
+<tr>
+<td>…with yaw coefficient 0.03 or 30% less inertia</td>
+<td><strong>52.1 m/s</strong></td>
+</tr>
+<tr>
+<td>Recommended package (§8): thrust/weight 7, k_n 0.005, yaw 0.03, inertia −30%</td>
+<td>wall 73.9; certified 68.1 (±5°) and 58.4 (±10°) at jerk 5</td>
+</tr>
+<tr>
+<td>Binding constraint at top speed</td>
+<td>top motor saturating (thrust plus steering)</td>
+</tr>
+<tr>
+<td>Binding constraint in dives</td>
+<td>yaw torque when total thrust is low</td>
+</tr>
+<tr>
+<td>Is the camera ever binding?</td>
+<td>No, with a 120° lens or a 30–70° hinge</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Spend in this order:</strong>
+1. <strong>Thrust-to-weight.</strong> About +5 m/s of wall and certified speed per unit of
+   thrust-to-weight.
+2. <strong>Rotor-disc and frame normal area (k_n).</strong> Halving it buys about 10 m/s.
+3. <strong>Yaw authority, and low yaw inertia.</strong> This lifts the ±10°, jerk-5 dive case from 33
+   to 52 m/s.
+4. <strong>Camera:</strong> a hinge, or a lens of at least 120°.</p>
+<p>Do not spend on a longer arm, a cleaner airframe (it hurts dives), wings, or a cleverer
+planner.</p>
+<h2>2. How to read the numbers</h2>
+<p><strong>Two kinds of bound:</strong>
+- <strong>Proved necessary (the wall).</strong> If the target's top speed exceeds it, a straight, level
+  target escapes <em>every</em> drone trajectory, even one planned with full knowledge of the
+  target's future. This is <code>NecPower</code> / <code>master_necessary_power</code> (rotor-disc model) and
+  <code>NecIneq3</code> / <code>master_necessary3</code> (isotropic model).
+- <strong>Proved sufficient (certified).</strong> If <code>MasterIneq3</code> holds, a concrete position-only
+  strategy keeps every admissible target that starts in steady flight in view in every
+  frame. That is <code>master_sufficient3</code>. The certified v_max is the largest value for which
+  the inequality holds, found by bisection over the exact mirror of the Lean budget
+  (<code>scripts/budget_v3.py</code>).</p>
+<p><strong>What the model includes:</strong>
+- a full rigid-body quadrotor in discrete time (δ = 1/240 s): four bounded motors, mixer,
+  Euler's equation, exact rotations, tilt, body-rate and speed limits;
+- parasitic drag c‖v‖v, and a rotor-disc normal force −k_n‖v‖⟪v, b₃⟫ b₃ with centre of
+  pressure at the centre of mass;
+- a camera on a one-axis hinge with a rate limit, and visibility meaning within detection
+  range and inside the field of view.</p>
+<p><strong>What the model leaves out:</strong>
+- rotor thrust that depends on airspeed;
+- aerodynamic moments;
+- wind;
+- the ground;
+- sensor noise.</p>
+<p>Read every number as "under this model". Section 9 lists what to measure to make them
+yours.</p>
+<h2>3. Geometry: approach from below, look back and up</h2>
+<h3>3.1 Why underneath</h3>
+<p>Fast flight tilts the quadrotor hard: about 50° of pitch at 35 m/s and about 70–80° at
+55 m/s. That tilt decides where a body-mounted camera can point.</p>
+<ul>
+<li><strong>Belly camera, looking down from above.</strong> It is capped near 30 m/s in our earlier
+  version: at speed the thrust axis tilts so far that the target leaves the field of view.</li>
+<li><strong>Looking down from above is also a losing position on its own.</strong> A drone that sits
+  higher than D·sin e<em>(v) above the target (D = detection range, e</em> = the depression
+  angle steady flight allows) must pitch beyond its drag balance to look down. It is then
+  pushed forward, overtakes, and loses the target. <code>QuadTraj.forced_loss_time</code> gives an
+  explicit time.</li>
+<li>In a prototype with a 382 m range and a 90° lens: about 17 s at 20 m/s and 300 m above;
+    about 53 s at 30 m/s.</li>
+<li>Above 40 m/s the drag balance itself provides the downward look.</li>
+<li><strong>Underneath, with a top camera.</strong> Pitching nose-down for speed rotates a rear-facing
+  top camera <em>up and over</em>. Speed helps this camera.</li>
+</ul>
+<h3>3.2 Rear-facing, not forward-facing</h3>
+<p>On a nose-down airframe a forward-facing top camera points at elevation η − p, where p is
+the pitch. At speed that is at or below 0: it cannot look up. A rear-facing camera points
+at p + η measured from the rear horizon, so it reaches straight up at speed. <strong>Mount the
+camera on the rear face of a cone-shaped head and hinge it about the pitch axis.</strong></p>
+<h3>3.3 Hinge or wide lens</h3>
+<p>With the yaw locked to the target's sideways direction, the camera's off-target angle is
+the bank angle plus the hinge's miss. Bank stays at or below 38° and the offset at or below
+40° across the envelope. Certified v_max, isotropic model, ±5° dives, jerk 3:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Camera</th>
+<th>120° lens</th>
+<th>90° lens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hinge 30–70°</td>
+<td>69.9 m/s</td>
+<td>69.9 m/s</td>
+</tr>
+<tr>
+<td>Hinge 20–80°</td>
+<td>69.9</td>
+<td>69.9</td>
+</tr>
+<tr>
+<td>Fixed at 50°</td>
+<td>69.9</td>
+<td><strong>50.1</strong></td>
+</tr>
+<tr>
+<td>Fixed at 60°</td>
+<td>—</td>
+<td><strong>34.6</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Rule:</strong> with a ≥120° lens a fixed mount near 50° is enough. With a 90° lens use a
+hinge of at least 30–70°. Pitch sweeps about 80° across the 20–55 m/s band, and only the
+hinge or the extra field of view absorbs it.</p>
+<h3>3.4 Offset and ground clearance</h3>
+<p>The formation offset (100 m below in our runs) barely matters for the bounds; 60–150 m
+behave alike. It does set the ground clearance: the target must fly at least the offset
+plus a safety margin above ground. Plan for 60–100 m.</p>
+<h2>4. Top speed: thrust and air</h2>
+<h3>4.1 The physics</h3>
+<p>The air pushes on the rotor plane with acceleration −k_n‖v‖⟪v, b₃⟫ b₃. At speed the rotor
+disc faces the wind (about 68° of tilt at 55 m/s), so this term is first-order, as large
+as the thrust needed against parasitic drag.</p>
+<p>The power the motors can put into the flight path is therefore capped at
+min(F_max‖v‖, F_max²/(4k_n‖v‖)). Parasitic drag takes c‖v‖³. Energy balance, together
+with the fact that the drone must stay within camera range of the target, gives the wall
+(<code>no_traj_keeps_of_power</code>). Its leading-order scaling is</p>
+<p><strong>V_wall ≈ (F_max² / (4·k_n·c))^¼.</strong></p>
+<h3>4.2 Sweeps (proved wall / certified v_max, ±5° dives, jerk ≤ 5)</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Lever</th>
+<th>Values</th>
+<th>Wall (m/s)</th>
+<th>Certified (m/s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Thrust/weight</td>
+<td>4 / 5 / 6 / 7 / 8</td>
+<td>47.1 / 52.6 / 57.7 / 62.3 / 66.7</td>
+<td>37.6 / 46.2 / 52.1 / 57.3 / 61.9</td>
+</tr>
+<tr>
+<td>k_n (m⁻¹)</td>
+<td>0 / 0.005 / 0.01 / 0.02</td>
+<td>84.5 / 68.4 / 57.7 / 48.7</td>
+<td>69.5 / 61.6 / 52.1 / 40.8</td>
+</tr>
+<tr>
+<td>Drag c (m⁻¹)</td>
+<td>0.006 / 0.008 / 0.010</td>
+<td>62.0 / 57.7 / 54.5</td>
+<td>39.3 / 52.1 / 50.1</td>
+</tr>
+</tbody>
+</table></div>
+<p>The scaling law holds closely across the sweeps:
+- doubling F_max multiplies the wall by 1.42 (√2 predicted);
+- quadrupling k_n multiplies it by 0.71 (4^−¼ = 0.707 predicted);
+- c from 0.006 to 0.010 multiplies it by 0.88 (0.88 predicted).</p>
+<p>The certified envelope tracks the wall at about 90%.</p>
+<h3>4.3 How tight the wall is</h3>
+<ul>
+<li><strong>The 57.7 m/s wall is physical, not slack.</strong> Steady straight, level flight at full
+  collective reaches 57.3 m/s. The 0.4 m/s difference is the energy gain of the 240 Hz
+  Euler step.</li>
+<li><strong>Weaving does not beat steady flight on a real quadrotor.</strong> A point mass that banks
+  left and right fast can beat steady flight: over-thrusting sideways tilts the disc off
+  the wind and cuts its drag (47.8 vs 47.0 m/s at k_n = 0.02). On a rigid body those flips
+  need motor thrusts of −34 to +78 N against a 22 N limit, just when the collective is
+  already at maximum. Every weave within the limits was slower than steady flight
+  (<code>scripts/explore/weave.py</code>).</li>
+</ul>
+<h3>4.4 Rules</h3>
+<ul>
+<li><strong>Thrust-to-weight first.</strong> It is the only lever that raises both the wall and the
+  certified envelope by about 5 m/s per unit.</li>
+<li><strong>Minimise the area the rotor plane presents to the wind</strong>: small discs relative to
+  thrust, and a thin frame in the disc plane. k_n is worth measuring (§9).</li>
+<li><strong>Do not chase parasitic drag.</strong> Lower c raises the wall weakly (c^−¼) and costs agility
+  in dives (§5.3).</li>
+<li><strong>Keep a motor-thrust reserve at top speed.</strong> The top motor saturates first: total thrust
+  for speed plus differential thrust for steering. The certified envelope ends where that
+  reserve runs out.</li>
+</ul>
+<h2>5. Agility: the 35 m/s dive</h2>
+<h3>5.1 Why the middle speed is the worst</h3>
+<p>A quadrotor steers by tilting, and tilts with differential motor thrust. The weakest motor
+cannot go below zero, so torque authority scales with <em>total</em> thrust.</p>
+<p>In a dive, gravity and drag both point along the path, so the motors need little total
+thrust. At 35 m/s in a 10° dive the minimum collective falls to about 7 m/s², below hover.
+At the same speed, a change in the target's acceleration (jerk) swings the thrust direction
+fastest, because the collective is small.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>10° dive, base quad, jerk 5</th>
+<th>20 m/s</th>
+<th>35 m/s</th>
+<th>55 m/s</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Torque available per motor</td>
+<td>2.8 N</td>
+<td><strong>2.4 N</strong></td>
+<td>7.6 N</td>
+</tr>
+<tr>
+<td>Torque needed per motor</td>
+<td>1.5 N</td>
+<td><strong>6.1 N</strong></td>
+<td>1.5 N</td>
+</tr>
+</tbody>
+</table></div>
+<p>At 55 m/s drag rescues the drone: about 24 m/s² of drag means a large collective and small
+attitude swings.</p>
+<h3>5.2 Sweeps (certified v_max, ±10° dives, jerk 5)</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Lever</th>
+<th>Values</th>
+<th>Certified (m/s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Yaw coefficient</td>
+<td>0.015 / 0.02 / 0.03</td>
+<td>30.9 / 33.4 / <strong>52.1</strong></td>
+</tr>
+<tr>
+<td>Inertia scale</td>
+<td>0.7 / 1.0 / 1.4</td>
+<td><strong>52.1</strong> / 33.4 / 30.1</td>
+</tr>
+<tr>
+<td>Arm length</td>
+<td>0.15 / 0.18 / 0.22 m</td>
+<td>33.2 / 33.4 / 33.5</td>
+</tr>
+<tr>
+<td>Thrust/weight</td>
+<td>4 → 8</td>
+<td>33.4 at every value</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Yaw torque binds, not roll or pitch.</strong> The frame is locked to the target's sideways
+direction, so a change in the thrust axis forces a yaw acceleration about the thrust axis
+in proportion to the bank.</p>
+<p>The remedies, in order:
+1. a larger yaw reaction coefficient (propellers and motors with more reaction torque per
+   newton, or canted motors);
+2. lower yaw inertia (mass close to the centre);
+3. a longer arm, which does nothing here because it helps roll and pitch only.</p>
+<p>Extra thrust does not help either, because the problem is low <em>minimum</em> collective, not
+low maximum.</p>
+<h3>5.3 The drag paradox</h3>
+<p>A cleaner airframe dives worse. At c = 0.006 the ±5° jerk-5 envelope drops from 52.1 to
+39.3 m/s, because less drag means even less collective in a dive. Drag is the quadrotor's
+air brake, and in pursuit the air brake is what keeps torque authority alive.</p>
+<h3>5.4 Wings make it worse</h3>
+<p>We prototyped a winged quadrotor: cambered arms giving lift along the camera direction,
+and symmetric sections on the other axis.
+- Lift unloads the motors. In a 35 m/s dive the minimum motor thrust falls to about 0, and
+  the available torque falls to 0.01–0.28 N against a need of 0.52 N.
+- The sensitivity of bank angle to sideways acceleration stays at about 1/g (5.9° per
+  m/s²) for every airframe.</p>
+<p>Wings would need control surfaces, and then the vehicle is no longer a quadrotor. <strong>Do not
+add lifting surfaces to a pursuit quadrotor.</strong></p>
+<h2>6. Strategy: copy exactly, from below</h2>
+<p>The certified strategy:
+- <strong>Planner:</strong> a sparse 3-tap filter, exact for constant acceleration, that sees target
+  positions with a 4-frame delay at 240 Hz.
+- <strong>Formation:</strong> the drone flies the filtered target path offset straight down.
+- <strong>Attitude:</strong> the thrust axis follows the planned acceleration, and the yaw is locked to
+  the target's sideways direction.
+- <strong>Camera:</strong> the hinge points straight up, clamped to its range.</p>
+<p>We tested five alternatives. None improved on it.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Alternative</th>
+<th>What happened</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Smoothing or lag-compensating linear planners</td>
+<td>Extrapolating through a 4-frame delay forces filter gain Σ|h| ≳ 2, so planned jerk and snap never drop below the target's own</td>
+</tr>
+<tr>
+<td>Capped (jerk-limited) nonlinear tracker</td>
+<td>Against adversarial targets: lags of 39–325 m and 13–35 m/s; the target reverses just as the tracker catches up</td>
+</tr>
+<tr>
+<td>Loose yaw, averaged formation, looser offsets</td>
+<td>Torque saved is paid back in bank, thrust margin or lag</td>
+</tr>
+<tr>
+<td>Weaving to reduce rotor-disc drag</td>
+<td>Needs −34 to +78 N motors (§4.3)</td>
+</tr>
+<tr>
+<td>Winged frame</td>
+<td>Motors go idle in dives (§5.4)</td>
+</tr>
+</tbody>
+</table></div>
+<p>There is also a negative result on the proof side: no <em>torque</em> requirement of practical
+size can be forced on the drone. With 570 m of detection range and a 120° lens, a drone may
+respond over 7–30 s, which forces only 0.002–0.007 rad/s of body rate. The agility limits
+come from the tight formation, not from physics. They could only be relaxed by a formation
+that spends range and field of view as slack. We did not find one that pays off.</p>
+<p><strong>Rule:</strong> invest in hardware headroom and a clean, high-rate planner (240 Hz, small fixed
+delay). Do not invest in clever trajectory shaping.</p>
+<h2>7. Rules of engagement</h2>
+<ol>
+<li><strong>Take position below and behind</strong>, at 60–100 m, before the target reaches top speed.</li>
+<li><strong>Expect the hardest moment at mid speed in a dive</strong>, not at top speed. If the target
+   dives at 30–40 m/s while rolling into a turn, that is where the margin goes.</li>
+<li><strong>Targets that escape any quadrotor:</strong>
+   - sustained level flight above the wall (57.7 m/s for the baseline);
+   - in the isotropic model, sinking straight down faster than the drone's own terminal
+     fall speed √(g/c) (35 m/s at c = 0.008).
+   No strategy recovers either.</li>
+<li><strong>Never trail from above</strong> at more than D·sin e*(v) of height. You will be forced past
+   the target.</li>
+<li><strong>Planner rate is a design input.</strong> The proved budgets use 120–480 Hz with a 4-frame
+   delay. Slower loops scale the frame-to-frame terms up.</li>
+</ol>
+<h2>8. Design checklist</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Item</th>
+<th>Target for a 55 m/s fixed-wing</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Thrust-to-weight</td>
+<td>≥ 7 (≥ 6 with low k_n)</td>
+<td>Wall and certified speed, about +5 m/s per unit</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Rotor-plane normal area</td>
+<td>k_n ≤ 0.005 m⁻¹ (≈ 0.01 m² per 1.5 kg)</td>
+<td>Wall ∝ k_n^−¼; k_n 0.01 → 0.005 gives about +10 m/s</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Yaw authority</td>
+<td>yaw coefficient ≥ 0.03 m, or canted motors</td>
+<td>±10° dive cases go from 33 to 52 m/s</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Yaw inertia</td>
+<td>≤ 0.014 kg·m² at 1.5 kg</td>
+<td>Same lever as item 3</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Camera</td>
+<td>top, rear-facing, hinge 30–70°, or fixed at about 50° with ≥ 120° lens</td>
+<td>Camera never binds</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Planner</td>
+<td>240 Hz, 4-frame delay, quadratic-exact 3-tap filter</td>
+<td>Certified configuration</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Motor reserve at top speed</td>
+<td>≥ 1–2 m/s² of collective kept for steering</td>
+<td>Top-motor saturation ends the envelope</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Parasitic drag</td>
+<td>do not minimise below c ≈ 0.008 m⁻¹</td>
+<td>Drag keeps collective, and torque, alive in dives</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Lifting surfaces</td>
+<td>none</td>
+<td>They idle the motors in dives</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Tilt limit</td>
+<td>≥ 85°</td>
+<td>Binds above about 59 m/s in 10° dives</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The recommended package, verified.</strong> Thrust-to-weight 7, k_n = 0.005, yaw coefficient
+0.03 and 30% less inertia give:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th></th>
+<th>±5° dives</th>
+<th>±10° dives</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Proved wall</td>
+<td>73.9 m/s</td>
+<td>73.9 m/s</td>
+</tr>
+<tr>
+<td>Certified, jerk ≤ 3</td>
+<td>68.2</td>
+<td>58.6</td>
+</tr>
+<tr>
+<td>Certified, jerk ≤ 5</td>
+<td>68.1</td>
+<td>58.4</td>
+</tr>
+</tbody>
+</table></div>
+<p>So a 55 m/s target is covered with margin in every case.</p>
+<p><strong>Levers interact.</strong> Without the inertia cut the ±10°/jerk-5 case drops back to 35.5 m/s.
+Lowering k_n also lowers the collective in dives: the drag paradox of §5.3 applies to the
+rotor disc too. Always re-run the sweep for the full package, not lever by lever.</p>
+<p>Above about 59 m/s in 10° dives the 85° tilt limit binds. A higher tilt limit is the next
+lever for steep, fast dives.</p>
+<h2>9. What to measure before trusting these numbers</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>How</th>
+<th>Why it matters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>k_n, c</td>
+<td>Wind tunnel or coast-down at several pitch angles; fit drag along and normal to the rotor plane</td>
+<td>Sets the wall to the ¼ power</td>
+</tr>
+<tr>
+<td>Motor thrust vs airspeed and inflow angle</td>
+<td>Thrust stand in a tunnel</td>
+<td>The model keeps f_max constant; edgewise flow at 50 m/s changes it</td>
+</tr>
+<tr>
+<td>Yaw reaction coefficient</td>
+<td>Torque stand</td>
+<td>Decides the dive envelope</td>
+</tr>
+<tr>
+<td>Inertia</td>
+<td>Bifilar pendulum</td>
+<td>Same</td>
+</tr>
+<tr>
+<td>Target jerk and snap</td>
+<td>Flight logs of the target class</td>
+<td>The certified envelope is quoted per jerk</td>
+</tr>
+</tbody>
+</table></div>
+<h2>Appendix: reproduce</h2>
+<ul>
+<li>Lean: <code>lake build</code>, then <code>scripts/axcheck.sh master_sufficient3 p3_bracket_power</code>.</li>
+<li>Sweeps: <code>python3 scripts/paper_sweeps.py</code> (writes <code>scripts/paper_sweeps.json</code>).</li>
+<li>Bracket tables: <code>python3 scripts/gap_v3.py</code> and <code>python3 scripts/gap_v3.py kn</code>.</li>
+<li>Weaving study: <code>python3 scripts/explore/weave.py</code>.</li>
+<li>Power-wall dual: <code>python3 scripts/explore/power_dual.py</code>.</li>
+</ul>
+</main>
