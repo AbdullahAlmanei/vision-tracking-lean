@@ -9,9 +9,15 @@ the flight path is limited at speed. With `y = ⟪v, b₃⟫` and collective `F 
   `⟪v, F b₃ - k_n ‖v‖ y b₃⟫ = F y - k_n ‖v‖ y² ≤ min (F_max ‖v‖) (F_max² / (4 k_n ‖v‖))`.
 
 The mechanical energy `½‖v‖² + g z` therefore changes by at most
-`δ (availPower ‖v‖ - c ‖v‖³)` per step (plus `δ² B²/2`). If a line `α - β s` lies above
-`availPower s - c s³` on the speed envelope, a drone that stays within range of a level
-target can average at most `(α + δ B²/2)/β` along it. A faster level target escapes
+`δ (availPower ‖v‖ - c ‖v‖³) + δ² B(‖v‖)²/2` per step, where `B(s)` bounds the acceleration
+at speed `s` (the last term is the energy gain of the explicit Euler step). If a line
+`α - β s` lies above `availPower s - c s³ + δ B(s)²/2` on the speed envelope, a drone that
+stays within range of a level target can average at most `α/β` along it.
+
+The attitude is not restricted, yet nothing is lost: with `δ → 0` the best line gives the
+exact steady force-balance wall (`‖thr‖ + k_n ‖v‖ ⟪v, b₃⟫ = F_max` with `b₃ ∥ thr` in
+straight level flight), to within `0.1` m/s. Adding the vertical force balance as a further
+multiplier does not improve it (`scripts/explore/power_dual.py`). A faster level target escapes
 **every** trajectory: `no_traj_keeps_of_power`.
 -/
 
@@ -26,9 +32,9 @@ variable {P : TargetParams} {Q : QuadParams} {C : CameraParams} {δ : ℝ}
 noncomputable def QuadParams.availPower (Q : QuadParams) (s : ℝ) : ℝ :=
   min (Q.maxAcc * s) (Q.maxAcc ^ 2 / (4 * Q.normalDrag * s))
 
-/-- A bound on the acceleration over the speed envelope. -/
-noncomputable def QuadParams.accBound (Q : QuadParams) : ℝ :=
-  Q.maxAcc + Q.normalDrag * Q.speedEnv ^ 2 + Q.g + Q.drag * Q.speedEnv ^ 2
+/-- A bound on the acceleration at speed `s`. -/
+noncomputable def QuadParams.accB (Q : QuadParams) (s : ℝ) : ℝ :=
+  Q.maxAcc + Q.normalDrag * s ^ 2 + Q.g + Q.drag * s ^ 2
 
 theorem power_le_availPower (hkn : 0 < Q.normalDrag) {F s y : ℝ} (hF0 : 0 ≤ F)
     (hF1 : F ≤ Q.maxAcc) (hs : 0 ≤ s) (hy : |y| ≤ s) :
@@ -57,7 +63,7 @@ noncomputable def QuadTraj.acc (d : QuadTraj Q C δ) (k : ℕ) : E3 :=
   (totalThrust (d.f k) / Q.mass - Q.normalDrag * ‖d.v k‖ * ⟪d.v k, d.b₃ k⟫) • d.b₃ k
     - Q.g • up - (Q.drag * ‖d.v k‖) • d.v k
 
-theorem QuadTraj.norm_acc_le (d : QuadTraj Q C δ) (k : ℕ) : ‖d.acc k‖ ≤ Q.accBound := by
+theorem QuadTraj.norm_acc_le (d : QuadTraj Q C δ) (k : ℕ) : ‖d.acc k‖ ≤ Q.accB ‖d.v k‖ := by
   have hF0 := d.thrust_nonneg k
   have hF1 := d.thrust_le k
   have hS := d.speed_le k
@@ -70,17 +76,16 @@ theorem QuadTraj.norm_acc_le (d : QuadTraj Q C δ) (k : ℕ) : ‖d.acc k‖ ≤
     have := abs_real_inner_le_norm (d.v k) (d.b₃ k); rwa [d.b₃_unit k, mul_one] at this
   generalize hY : ⟪d.v k, d.b₃ k⟫ = y at hy
   generalize hV : ‖d.v k‖ = s at hn hS hy
-  have hsy : s * |y| ≤ Q.speedEnv ^ 2 := by
-    rw [sq]; exact mul_le_mul hS (hy.trans hS) (abs_nonneg _) hS0
-  have hss : s * s ≤ Q.speedEnv ^ 2 := by rw [sq]; exact mul_le_mul hS hS hn hS0
-  have t1 : ‖(F - Q.normalDrag * s * y) • d.b₃ k‖ ≤ Q.maxAcc + Q.normalDrag * Q.speedEnv ^ 2 := by
+  have hsy : s * |y| ≤ s ^ 2 := by rw [sq]; exact mul_le_mul_of_nonneg_left hy hn
+  have hss : s * s ≤ s ^ 2 := le_of_eq (sq s).symm
+  have t1 : ‖(F - Q.normalDrag * s * y) • d.b₃ k‖ ≤ Q.maxAcc + Q.normalDrag * s ^ 2 := by
     rw [norm_smul, d.b₃_unit k, mul_one, Real.norm_eq_abs]
     refine (abs_sub _ _).trans ?_
     rw [abs_of_nonneg hF0, mul_assoc, abs_mul, abs_of_nonneg hkn, abs_mul, abs_of_nonneg hn]
     have := mul_le_mul_of_nonneg_left hsy hkn
     linarith
   have t2 : ‖Q.g • up‖ = Q.g := by rw [norm_smul, norm_up', mul_one, Real.norm_of_nonneg Q.g_pos.le]
-  have t3 : ‖(Q.drag * s) • d.v k‖ ≤ Q.drag * Q.speedEnv ^ 2 := by
+  have t3 : ‖(Q.drag * s) • d.v k‖ ≤ Q.drag * s ^ 2 := by
     rw [norm_smul, Real.norm_of_nonneg (mul_nonneg hc hn), hV, mul_assoc]
     exact mul_le_mul_of_nonneg_left hss hc
   have e : d.acc k = (F - Q.normalDrag * s * y) • d.b₃ k - Q.g • up - (Q.drag * s) • d.v k := by
@@ -88,7 +93,7 @@ theorem QuadTraj.norm_acc_le (d : QuadTraj Q C δ) (k : ℕ) : ‖d.acc k‖ ≤
   rw [e]
   have u1 := norm_sub_le ((F - Q.normalDrag * s * y) • d.b₃ k - Q.g • up) ((Q.drag * s) • d.v k)
   have u2 := norm_sub_le ((F - Q.normalDrag * s * y) • d.b₃ k) (Q.g • up)
-  unfold QuadParams.accBound
+  unfold QuadParams.accB
   linarith
 
 /-- Mechanical energy per unit mass. -/
@@ -99,7 +104,8 @@ noncomputable def QuadTraj.energy (d : QuadTraj Q C δ) (k : ℕ) : ℝ :=
 theorem QuadTraj.energy_step (d : QuadTraj Q C δ) (hδ : 0 < δ) (hkn : 0 < Q.normalDrag)
     (k : ℕ) :
     d.energy (k + 1) - d.energy k
-      ≤ δ * (Q.availPower ‖d.v k‖ - Q.drag * ‖d.v k‖ ^ 3) + δ ^ 2 * Q.accBound ^ 2 / 2 := by
+      ≤ δ * (Q.availPower ‖d.v k‖ - Q.drag * ‖d.v k‖ ^ 3)
+        + δ ^ 2 * Q.accB ‖d.v k‖ ^ 2 / 2 := by
   have hv : d.v (k + 1) = d.v k + δ • d.acc k := by rw [d.translational k]; rfl
   have hx : d.x (k + 1) = d.x k + δ • d.v k := d.steps k
   set s := ‖d.v k‖
@@ -113,7 +119,7 @@ theorem QuadTraj.energy_step (d : QuadTraj Q C δ) (hδ : 0 < δ) (hkn : 0 < Q.n
     (norm_nonneg (d.v k)) (by
       have := abs_real_inner_le_norm (d.v k) (d.b₃ k); rwa [d.b₃_unit k, mul_one] at this)
   have hA := d.norm_acc_le k
-  have hA2 : ‖d.acc k‖ ^ 2 ≤ Q.accBound ^ 2 := pow_le_pow_left₀ (norm_nonneg _) hA 2
+  have hA2 : ‖d.acc k‖ ^ 2 ≤ Q.accB ‖d.v k‖ ^ 2 := pow_le_pow_left₀ (norm_nonneg _) hA 2
   have hE : d.energy (k + 1) - d.energy k
       = δ * ⟪d.v k, d.acc k⟫ + δ ^ 2 * ‖d.acc k‖ ^ 2 / 2 + Q.g * δ * ⟪d.v k, up⟫ := by
     simp only [QuadTraj.energy]
@@ -127,10 +133,11 @@ theorem QuadTraj.energy_step (d : QuadTraj Q C δ) (hδ : 0 < δ) (hkn : 0 < Q.n
 /-- **Energy-displacement budget.** -/
 theorem QuadTraj.energy_disp_le (d : QuadTraj Q C δ) (hδ : 0 < δ) (hkn : 0 < Q.normalDrag)
     {α β : ℝ} (hβ : 0 ≤ β)
-    (hline : ∀ s, 0 ≤ s → s ≤ Q.speedEnv → Q.availPower s - Q.drag * s ^ 3 ≤ α - β * s)
+    (hline : ∀ s, 0 ≤ s → s ≤ Q.speedEnv →
+      Q.availPower s - Q.drag * s ^ 3 + δ * Q.accB s ^ 2 / 2 ≤ α - β * s)
     {u : E3} (hu : ‖u‖ = 1) (N : ℕ) :
     d.energy N - d.energy 0 + β * ⟪d.x N - d.x 0, u⟫
-      ≤ N * δ * (α + δ * Q.accBound ^ 2 / 2) := by
+      ≤ N * δ * α := by
   induction N with
   | zero => simp
   | succ N ih =>
@@ -148,8 +155,9 @@ theorem QuadTraj.energy_disp_le (d : QuadTraj Q C δ) (hδ : 0 < δ) (hkn : 0 < 
 /-- **Power wall, trajectory form.** A level target faster than the power wall escapes
 every drone trajectory. -/
 theorem no_traj_keeps_of_power (hδ : 0 < δ) (hkn : 0 < Q.normalDrag) {α β : ℝ} (hβ : 0 < β)
-    (hline : ∀ s, 0 ≤ s → s ≤ Q.speedEnv → Q.availPower s - Q.drag * s ^ 3 ≤ α - β * s)
-    (hfast : α + δ * Q.accBound ^ 2 / 2 < β * P.vMax)
+    (hline : ∀ s, 0 ≤ s → s ≤ Q.speedEnv →
+      Q.availPower s - Q.drag * s ^ 3 + δ * Q.accB s ^ 2 / 2 ≤ α - β * s)
+    (hfast : α < β * P.vMax)
     (p₀ : E3) {u : E3} (hu : ‖u‖ = 1) (hclimb : |⟪u, up⟫| ≤ Real.sin P.climbMax)
     (hhor : ⟪u, up⟫ = 0) (d : QuadTraj Q C δ) :
     ¬ KeepsInView C P.size d (straightTarget P hδ.le p₀ u hu hclimb) := by
@@ -171,22 +179,20 @@ theorem no_traj_keeps_of_power (hδ : 0 < δ) (hkn : 0 < Q.normalDrag) {α β : 
     rw [inner_sub_left] at a1 a0 ⊢
     rw [hTz] at a1 a0
     linarith [(abs_le.1 a1).1, (abs_le.1 a1).2, (abs_le.1 a0).1, (abs_le.1 a0).2]
-  set α' := α + δ * Q.accBound ^ 2 / 2 with hα'
   have hdisp : ∀ k : ℕ, ⟪d.x k - d.x 0, u⟫
-      ≤ k * δ * (α' / β) + (Q.speedEnv ^ 2 / 2 + 2 * Q.g * D) / β := by
+      ≤ k * δ * (α / β) + (Q.speedEnv ^ 2 / 2 + 2 * Q.g * D) / β := by
     intro k
     have hb := d.energy_disp_le hδ hkn hβ.le hline hu k
-    rw [← hα'] at hb
     have hv0 : ‖d.v 0‖ ^ 2 ≤ Q.speedEnv ^ 2 := pow_le_pow_left₀ (norm_nonneg _) (d.speed_le 0) 2
     have hE : -(Q.speedEnv ^ 2 / 2) + Q.g * ⟪d.x k - d.x 0, up⟫ ≤ d.energy k - d.energy 0 := by
       simp only [QuadTraj.energy, inner_sub_left]
       nlinarith [sq_nonneg ‖d.v k‖]
     have hgz := mul_le_mul_of_nonneg_left (hz k) Q.g_pos.le
-    rw [show (k : ℝ) * δ * (α' / β) + (Q.speedEnv ^ 2 / 2 + 2 * Q.g * D) / β
-        = (k * δ * α' + (Q.speedEnv ^ 2 / 2 + 2 * Q.g * D)) / β by field_simp,
+    rw [show (k : ℝ) * δ * (α / β) + (Q.speedEnv ^ 2 / 2 + 2 * Q.g * D) / β
+        = (k * δ * α + (Q.speedEnv ^ 2 / 2 + 2 * Q.g * D)) / β by field_simp,
       le_div_iff₀ hβ]
     nlinarith
-  have hV : α' / β < P.vMax := by rw [div_lt_iff₀ hβ]; linarith
+  have hV : α / β < P.vMax := by rw [div_lt_iff₀ hβ]; linarith
   obtain ⟨k, hk⟩ := straightTarget_escapes_of_displacement P hδ p₀ u hu hclimb hdisp hV D
   exact absurd (hkeep k).1 (not_le.2 hk)
 
@@ -194,8 +200,9 @@ theorem no_traj_keeps_of_power (hδ : 0 < δ) (hkn : 0 < Q.normalDrag) {α β : 
 available power caps the target's top speed. -/
 def NecPower (P : TargetParams) (Q : QuadParams) (δ : ℝ) : Prop :=
   ∀ α β : ℝ, 0 < β →
-    (∀ s, 0 ≤ s → s ≤ Q.speedEnv → Q.availPower s - Q.drag * s ^ 3 ≤ α - β * s) →
-    β * P.vMax ≤ α + δ * Q.accBound ^ 2 / 2
+    (∀ s, 0 ≤ s → s ≤ Q.speedEnv →
+      Q.availPower s - Q.drag * s ^ 3 + δ * Q.accB s ^ 2 / 2 ≤ α - β * s) →
+    β * P.vMax ≤ α
 
 /-- **Necessary side with the rotor-disc normal force.** -/
 theorem master_necessary_power (hδ : 0 < δ) (hkn : 0 < Q.normalDrag)

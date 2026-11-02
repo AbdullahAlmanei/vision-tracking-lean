@@ -35,19 +35,26 @@ def avail_power(Q, s):
     F = 4 * Q['fMotor'] / Q['mass']
     return 0.0 if s <= 0 else min(F * s, F * F / (4 * Q['kn'] * s))
 
+def acc_b(Q, s):
+    """QuadParams.accB (PowerWall.lean)."""
+    return 4 * Q['fMotor'] / Q['mass'] + Q['kn'] * s * s + Q['g'] + Q['drag'] * s * s
+
 def power_vmax(Q, dt, n=4000):
-    """NecPower (PowerWall.lean): the best line alpha - beta s above availPower - c s^3 on
-    [0, speedEnv] caps vMax at (alpha + dt B^2 / 2) / beta."""
-    S = Q['speedEnv']; c = Q['drag']; F = 4 * Q['fMotor'] / Q['mass']
-    B = F + Q['kn'] * S ** 2 + Q['g'] + c * S ** 2
+    """NecPower (PowerWall.lean): the best line alpha - beta s above
+    availPower - c s^3 + dt accB(s)^2 / 2 on [0, speedEnv] caps vMax at alpha / beta."""
+    S = Q['speedEnv']; c = Q['drag']
     ss = [S * i / n for i in range(n + 1)]
-    hs = [avail_power(Q, x) - c * x ** 3 for x in ss]
-    best = float('inf')
-    for k in range(1, 3001):
-        beta = k * 0.1
-        alpha = max(h + beta * x for h, x in zip(hs, ss))
-        best = min(best, (alpha + dt * B * B / 2) / beta)
-    return best
+    hs = [avail_power(Q, x) - c * x ** 3 + dt * acc_b(Q, x) ** 2 / 2 for x in ss]
+    return min(max(h + k * 0.1 * x for h, x in zip(hs, ss)) / (k * 0.1) for k in range(1, 3001))
+
+def steady_wall(Q):
+    """Exact steady straight-level force balance: |thr| + k_n V <v, b3> = F_max, b3 || thr."""
+    g, c, kn, F = Q['g'], Q['drag'], Q['kn'], 4 * Q['fMotor'] / Q['mass']
+    lo, hi = 1.0, 150.0
+    for _ in range(60):
+        V = (lo + hi) / 2; N = math.hypot(g, c * V * V)
+        lo, hi = (V, hi) if N + kn * V * V * (c * V * V) / N <= F else (lo, V)
+    return lo
 
 if __name__ == '__main__' and len(__import__('sys').argv) > 1 and __import__('sys').argv[1] == 'kn':
     print('Rotor-disc normal force: power wall (NecPower) vs sufficient MasterIneq3, dt = 1/240')
@@ -55,6 +62,7 @@ if __name__ == '__main__' and len(__import__('sys').argv) > 1 and __import__('sy
         for qn, Q0 in {'base': BASE, 'kYaw .03, arm .22': dict(BASE, kYaw=0.03, arm=0.22)}.items():
             Q = dict(Q0, kn=kn)
             nec = power_vmax(Q, 1 / 240)
+            print(f"  k_n {kn:.3f}: power wall {nec:5.1f} (proved, dt = 1/240) vs steady force balance {steady_wall(Q):5.1f}")
             for climb in [5, 10]:
                 row = [f"k_n {kn:.3f} {qn:18s} {climb:2d} deg: necessary <= {nec:5.1f}"]
                 for J in [1, 3, 5]:
