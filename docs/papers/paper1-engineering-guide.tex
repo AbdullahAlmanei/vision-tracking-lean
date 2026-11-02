@@ -1,0 +1,589 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{booktabs,tabularx}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=black!70!blue,citecolor=black!70!blue,urlcolor=black!70!blue]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\setlist{itemsep=2pt,topsep=4pt}
+\newcommand{\ip}[2]{\langle #1,#2\rangle}
+\newcommand{\norm}[1]{\lVert #1\rVert}
+\newcommand{\lean}[1]{\texttt{\small #1}}
+\newcommand{\ms}{\,\mathrm{m/s}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\title{\textbf{Buy Headroom, Not Cleverness}\\[4pt]
+\large An Engineering Guide to Quadrotor Pursuit of Fast Fixed-Wing Aircraft}
+\author{Abdullah Almanei}
+\date{Draft, 2 November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A quadrotor must keep a fast fixed-wing aircraft in the image of one camera in each frame.
+The aircraft is 3.5\,m long, flies at speeds up to $55\ms$ and turns on a radius of $350$\,m.
+A computer has checked all the bounds that we use.
+One bound is sufficient: if it is true, our pursuit method keeps the target in view.
+The other bound is necessary: if it is false, no method can keep the target in view.
+We changed each design parameter and recorded the effect on the two bounds.
+
+The results give three rules.
+Thrust and air set the top speed, and the thrust-to-weight ratio is the most effective parameter.
+Yaw authority sets the agility in a dive at mid speed, and more thrust does not help there.
+The camera position solves the camera problem: fly below the target and point a hinged camera up and back.
+More complex pursuit methods did not give better results than a simple copy of the target path.
+
+For a 1.5\,kg quadrotor, the proved limit is $57.7\ms$, and our proofs certify our method to $52\ms$.
+A recommended set of changes increases these values to $73.9\ms$ and $68\ms$.
+\end{abstract}
+
+\section{Introduction}
+
+A quadrotor that follows a fast fixed-wing aircraft must keep the aircraft in view at all times.
+This looks like a problem of control.
+Our results show that it is almost always a problem of hardware.
+
+We made a full rigid-body model of the quadrotor and of the target.
+In the Lean~4 proof assistant~\cite{lean4,mathlib}, we proved two inequalities about this model.
+The first inequality is sufficient for one pursuit method.
+The second inequality is necessary for all pursuit methods.
+
+Then we changed each physical parameter and recorded how the two inequalities moved.
+This guide gives the results in a form that an engineer can use.
+It tells you which parameters to change, by how much, and which parameters to leave alone.
+
+Our reference quadrotor has a mass of 1.5\,kg and a thrust-to-weight ratio of 6.
+It has four motors in a plus layout, on arms of 18\,cm.
+Its yaw reaction coefficient is 0.02\,m, and its inertia is $(0.012, 0.012, 0.02)$\,kg\,m$^2$.
+
+Its parasitic drag coefficient $c$ is $0.008\,\mathrm{m}^{-1}$.
+The rotor disc also has a normal-force coefficient $k_n$ of $0.01\,\mathrm{m}^{-1}$.
+This value agrees with approximately $0.02$\,m$^2$ of normal area.
+The tilt limit is $85^\circ$, and the body-rate limit is $20$\,rad/s.
+
+A camera with a $120^\circ$ field of view is on the top of the quadrotor.
+The camera points to the rear, on a hinge with a range of $30^\circ$ to $70^\circ$.
+The control system operates at $240$\,Hz.
+
+The reference target flies at speeds from $20\ms$ to a maximum speed $v_{\max}$.
+Its minimum turn radius is $350$\,m.
+Its acceleration along the path is not more than $2$\,m/s$^2$.
+Its vertical acceleration is not more than $1.5$\,m/s$^2$.
+Its snap is not more than $15$\,m/s$^4$, and its jerk is between $1$ and $5$\,m/s$^3$.
+It can climb or dive at angles of up to $5^\circ$ or $10^\circ$.
+
+\Cref{tab:summary} gives the answer on one page.
+The quadrotor gets the most speed from more thrust and from a smaller rotor-disc area.
+It gets the most agility in steep dives from more yaw authority and less yaw inertia.
+A hinge or a wide lens removes the camera as a limit.
+A longer arm, a cleaner airframe, wings and a more complex planner do not help.
+The subsequent sections explain each of these results.
+
+\begin{table}[t]
+\centering
+\caption{Summary for the reference quadrotor. The limit is the proved necessary bound. The
+certified value is the highest $v_{\max}$ for which the proved sufficient condition is true.}
+\label{tab:summary}
+\begin{tabularx}{\linewidth}{@{}Yl@{}}
+\toprule
+Question & Answer \\
+\midrule
+Highest target speed that any method can follow (proved limit) & $57.7\ms$ \\
+Certified speed, dives to $5^\circ$, jerk to $5$ & $52.1\ms$ \\
+Certified speed, dives to $10^\circ$, jerk to $3$ & $52.1\ms$ \\
+Certified speed, dives to $10^\circ$, jerk $5$ & $33.4\ms$ (yaw limit) \\
+\quad with yaw coefficient $0.03$ or $30\%$ less inertia & $52.1\ms$ \\
+Recommended set of changes (\cref{sec:checklist}) & limit $73.9$; certified $68.1$ and $58.4$ \\
+Limit at top speed & the top motor is at maximum thrust \\
+Limit in dives & yaw torque at low total thrust \\
+Is the camera a limit? & no, with a $120^\circ$ lens or a hinge \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{How to read the numbers}
+
+This guide uses two types of bound.
+The necessary bound is a speed limit.
+If the target flies faster than this limit, a straight and level target escapes from all
+quadrotor paths.
+This is true also for a path that the quadrotor plans with full knowledge of the target's future.
+The Lean theorems are \lean{master\_necessary\_power} for the rotor-disc model and
+\lean{master\_necessary3} for the isotropic model.
+
+The sufficient bound is the inequality \lean{MasterIneq3}.
+If it is true, our method keeps each permitted target in view in each frame.
+The target must start in steady flight.
+The Lean theorem is \lean{master\_sufficient3}.
+The certified speed is the highest $v_{\max}$ for which \lean{MasterIneq3} is true.
+A numerical copy of the Lean definitions finds this value.
+
+The model is a full rigid-body quadrotor in discrete time, with a step of $1/240$\,s.
+It includes four motors with limits, the motor mixer and the rotational equation of motion.
+It also includes exact rotations and the limits on tilt, body rate and speed.
+Air causes two forces.
+The first force is parasitic drag, $-c\norm v v$.
+The second force is a normal force on the rotor disc~\cite{hoffmann2007,faessler2018}:
+\begin{equation}
+  a_n = -k_n \norm v \ip{v}{b_3}\, b_3 .
+\end{equation}
+Here $v$ is the velocity and $b_3$ is the thrust axis.
+This force acts at the centre of mass.
+The target is in view when it is in the detection range and in the field of view.
+
+The model does not include five effects.
+These effects are the change of motor thrust with airspeed, aerodynamic moments, wind, the ground
+and sensor noise.
+Thus each number in this guide is true for the model only.
+\Cref{sec:measure} tells you what to measure before you use these numbers.
+
+\section{Geometry: fly below the target and look back and up}
+\label{sec:geometry}
+
+\subsection{Why the quadrotor must fly below the target}
+
+A fast quadrotor tilts a large amount.
+The pitch angle is approximately $50^\circ$ at $35\ms$ and $70^\circ$ to $80^\circ$ at $55\ms$.
+A camera below the body, with the quadrotor above the target, cannot keep the target in view
+above approximately $30\ms$.
+At these speeds, the tilt of the thrust axis moves the target out of the field of view.
+
+A position above the target is also a bad position for a different reason.
+To look down, the quadrotor must pitch more than its drag balance.
+This extra pitch pushes the quadrotor forward.
+The quadrotor then passes the target and loses it.
+The theorem \lean{QuadTraj.forced\_loss\_time} gives the time until this loss.
+
+In a prototype with a range of 382\,m and a $90^\circ$ lens, the time was approximately 17\,s.
+This was at $20\ms$, 300\,m above the target.
+At $30\ms$, the time was approximately 53\,s.
+
+Below the target, the opposite occurs.
+When the quadrotor pitches its nose down for speed, a rear camera on its top turns up.
+Thus, speed helps this camera.
+
+\subsection{Point the camera to the rear}
+
+On a quadrotor with its nose down, a forward camera on the top points at the angle $\eta - p$.
+Here $p$ is the pitch angle and $\eta$ is the camera angle.
+At high speed, this angle is zero or less, so the camera cannot look up.
+
+A rear camera points at the angle $p + \eta$ from the rear horizon.
+At high speed, this camera points straight up.
+Install the camera on the rear face of a cone-shaped head.
+Attach the camera with a hinge that turns about the pitch axis.
+
+\subsection{Use a hinge or a wide lens}
+
+Our method locks the yaw to the side direction of the target.
+With this method, the camera error angle is not more than the bank angle plus the hinge error.
+The bank angle is not more than $38^\circ$ in all conditions.
+The camera error is not more than $40^\circ$.
+\Cref{tab:camera} shows when the hinge is necessary.
+
+\begin{table}[h]
+\centering
+\caption{Certified $v_{\max}$ in m/s. Isotropic drag, dives to $5^\circ$, jerk to $3$.}
+\label{tab:camera}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Camera installation & $120^\circ$ lens & $90^\circ$ lens \\
+\midrule
+Hinge, $30^\circ$ to $70^\circ$ & $69.9$ & $69.9$ \\
+Hinge, $20^\circ$ to $80^\circ$ & $69.9$ & $69.9$ \\
+Fixed at $50^\circ$ & $69.9$ & $\mathbf{50.1}$ \\
+Fixed at $60^\circ$ & --- & $\mathbf{34.6}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+With a lens of $120^\circ$ or more, a fixed camera at approximately $50^\circ$ is sufficient.
+With a lens of $90^\circ$, use a hinge with a range of $30^\circ$ to $70^\circ$ or more.
+The pitch angle changes by approximately $80^\circ$ between $20\ms$ and $55\ms$.
+Only a hinge or a wider field of view can compensate for this change.
+
+\subsection{Vertical distance and ground clearance}
+
+The vertical distance between the quadrotor and the target has almost no effect on the bounds.
+Distances from 60\,m to 150\,m give the same results.
+But this distance sets the ground clearance.
+The target must fly higher than this distance plus a safety margin.
+Use a distance of 60\,m to 100\,m.
+
+\section{Top speed: thrust and air}
+\label{sec:speed}
+
+\subsection{The physics}
+
+At high speed, the rotor disc is almost perpendicular to the airflow.
+At $55\ms$, its tilt is approximately $68^\circ$.
+Thus, the normal force on the disc is large.
+It is approximately equal to the thrust that the quadrotor uses against parasitic drag.
+
+Let $F$ be the total thrust per unit mass, with $F \le F_{\max}$.
+Let $y = \ip{v}{b_3}$.
+The power that the motors can put into the flight path is then limited:
+\begin{equation}
+  F y - k_n\norm v y^2 \;\le\; \min\!\Big(F_{\max}\norm v,\; \frac{F_{\max}^2}{4k_n\norm v}\Big).
+  \label{eq:power}
+\end{equation}
+Parasitic drag removes the power $c\norm v^3$.
+The quadrotor must also stay in camera range of a level target, so its height cannot change
+without limit.
+The energy balance then gives the proved speed limit (\lean{no\_traj\_keeps\_of\_power}).
+To the first order, this limit is
+\begin{equation}
+  V_{\mathrm{limit}} \approx \Big(\frac{F_{\max}^2}{4\,k_n\,c}\Big)^{1/4}.
+  \label{eq:wall}
+\end{equation}
+
+\subsection{Effect of each parameter}
+
+\Cref{tab:speed} shows the limit and the certified speed for each parameter value.
+\Cref{eq:wall} agrees closely with the data.
+When $F_{\max}$ doubles, the limit increases by a factor of $1.42$.
+The equation gives $\sqrt2$, which is $1.41$.
+When $k_n$ increases by a factor of four, the limit decreases by a factor of $0.71$.
+The equation gives $0.707$.
+
+When $c$ increases from $0.006$ to $0.010$, the limit decreases by a factor of $0.88$.
+The equation gives the same value.
+The certified speed is approximately $90\%$ of the limit in all cases.
+
+\begin{table}[h]
+\centering
+\caption{Proved limit and certified $v_{\max}$ in m/s. Dives to $5^\circ$, jerk to $5$. All other
+parameters have their reference values.}
+\label{tab:speed}
+\begin{tabular}{@{}llcc@{}}
+\toprule
+Parameter & Value & Limit & Certified \\
+\midrule
+Thrust-to-weight ratio & $4$ & $47.1$ & $37.6$ \\
+ & $5$ & $52.6$ & $46.2$ \\
+ & $6$ & $57.7$ & $52.1$ \\
+ & $7$ & $62.3$ & $57.3$ \\
+ & $8$ & $66.7$ & $61.9$ \\
+\midrule
+$k_n$ (m$^{-1}$) & $0$ & $84.5$ & $69.5$ \\
+ & $0.005$ & $68.4$ & $61.6$ \\
+ & $0.01$ & $57.7$ & $52.1$ \\
+ & $0.02$ & $48.7$ & $40.8$ \\
+\midrule
+Drag $c$ (m$^{-1}$) & $0.006$ & $62.0$ & $39.3$ \\
+ & $0.008$ & $57.7$ & $52.1$ \\
+ & $0.010$ & $54.5$ & $50.1$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{How close the limit is to the physics}
+
+The limit of $57.7\ms$ is a physical limit.
+In steady, straight and level flight at maximum thrust, the quadrotor gets to $57.3\ms$.
+The difference of $0.4\ms$ comes from the energy gain of the time step at $240$\,Hz.
+
+A point mass can fly faster than steady flight with a weave maneuver.
+It applies more thrust than necessary and turns the extra thrust to the left and to the right in
+turn.
+The side force does no work, but it tilts the rotor disc away from the airflow.
+This decreases the drag on the disc.
+At $k_n = 0.02$, the weave gives $47.8\ms$, and steady flight gives $47.0\ms$.
+
+A real quadrotor cannot fly this weave.
+For the fast changes of bank angle, motor thrusts from $-34$\,N to $+78$\,N are necessary.
+The motor limit is 22\,N.
+Also, this torque is necessary when the total thrust is already at maximum.
+In our search, each weave within the limits was slower than steady flight.
+
+\subsection{Rules for top speed}
+
+Increase the thrust-to-weight ratio first.
+It is the only parameter that increases both the limit and the certified speed by approximately
+$5\ms$ per unit.
+
+Then decrease the area of the rotor plane that faces the airflow.
+Use small rotor discs for the thrust.
+Use a thin frame in the plane of the discs.
+
+Do not decrease the parasitic drag too much.
+A lower $c$ increases the limit only as $c^{-1/4}$, and it decreases the agility in dives.
+Keep a thrust reserve on each motor at top speed.
+The top motor gets to its maximum thrust first, because it supplies thrust for speed and for
+attitude control.
+
+\section{Agility: the dive at 35\,m/s}
+\label{sec:agility}
+
+\subsection{Why the mid speed is the worst speed}
+
+A quadrotor changes its direction when it tilts.
+It tilts when its motors apply different thrusts.
+The thrust of the weakest motor cannot be less than zero.
+Thus, the available torque increases with the total thrust~\cite{mahony2012}.
+
+In a dive, gravity and drag both act along the flight path.
+Thus, the motors supply only a small total thrust.
+At $35\ms$ in a $10^\circ$ dive, the minimum total thrust is approximately $7$\,m/s$^2$.
+This is less than the thrust necessary to hover.
+
+At the same speed, a change of target acceleration turns the thrust axis fastest.
+At $55\ms$, the drag is approximately $24$\,m/s$^2$.
+The total thrust is then large, and the attitude changes are small.
+\Cref{tab:dive} shows the result.
+
+\begin{table}[h]
+\centering
+\caption{Torque per motor in a $10^\circ$ dive. Reference quadrotor, jerk $5$.}
+\label{tab:dive}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+ & $20\ms$ & $35\ms$ & $55\ms$ \\
+\midrule
+Available & $2.8$\,N & $\mathbf{2.4}$\,N & $7.6$\,N \\
+Necessary & $1.5$\,N & $\mathbf{6.1}$\,N & $1.5$\,N \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Effect of each parameter}
+
+\Cref{tab:agility} shows that yaw torque is the limit.
+Roll torque and pitch torque are not the limit.
+Our method locks the frame to the side direction of the target.
+Thus, a change of thrust axis causes a yaw acceleration that increases with the bank angle.
+
+Two changes correct this problem.
+The first change is a larger yaw reaction coefficient.
+Use propellers and motors with more reaction torque per newton, or tilt the motors.
+The second change is a lower yaw inertia.
+Put the mass near the centre.
+
+A longer arm helps only roll and pitch.
+More thrust does not help, because the problem is the low minimum thrust.
+
+\begin{table}[h]
+\centering
+\caption{Certified $v_{\max}$ in m/s. Dives to $10^\circ$, jerk $5$.}
+\label{tab:agility}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Parameter & Values & Certified \\
+\midrule
+Yaw coefficient (m) & $0.015 \,/\, 0.02 \,/\, 0.03$ & $30.9 \,/\, 33.4 \,/\, \mathbf{52.1}$ \\
+Inertia factor & $0.7 \,/\, 1.0 \,/\, 1.4$ & $\mathbf{52.1} \,/\, 33.4 \,/\, 30.1$ \\
+Arm length (m) & $0.15 \,/\, 0.18 \,/\, 0.22$ & $33.2 \,/\, 33.4 \,/\, 33.5$ \\
+Thrust-to-weight ratio & $4$ to $8$ & $33.4$ for each value \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Less drag gives worse dives}
+\label{sec:paradox}
+
+An airframe with less drag dives worse.
+At $c = 0.006$, the certified speed for dives to $5^\circ$ at jerk $5$ decreases from $52.1\ms$ to
+$39.3\ms$.
+The cause is the lower total thrust in a dive.
+Drag is the air brake of the quadrotor.
+In a pursuit, this air brake keeps the torque available.
+A smaller rotor-disc area has the same effect (\cref{sec:checklist}).
+
+\subsection{Wings make the problem worse}
+
+We made a prototype of a quadrotor with wings.
+Its arms had a cambered section that gives lift in the direction of the camera.
+The lift decreases the load on the motors.
+
+In a dive at $35\ms$, the minimum motor thrust decreased to approximately zero.
+The available torque decreased to $0.01$\,N to $0.28$\,N, but the necessary torque was $0.52$\,N.
+For all airframes, the bank angle changes by approximately $5.9^\circ$ for each m/s$^2$ of side
+acceleration.
+Wings help only with control surfaces, and with these surfaces the vehicle is not a quadrotor.
+
+\section{Method: copy the target path from below}
+\label{sec:strategy}
+
+Our method has four parts.
+The planner uses a three-tap filter that is exact for constant acceleration.
+This filter gets the target positions with a delay of four frames at $240$\,Hz.
+The quadrotor flies the filtered target path, at a fixed distance straight below it.
+The thrust axis follows the planned acceleration, and the yaw follows the side direction of
+the target.
+The hinge points the camera straight up, in the limits of its range.
+
+We tested five other methods.
+\Cref{tab:alternatives} gives the results.
+No method was better than our method.
+
+\begin{table}[h]
+\centering
+\caption{Other pursuit methods and their results.}
+\label{tab:alternatives}
+\begin{tabularx}{\linewidth}{@{}lY@{}}
+\toprule
+Method & Result \\
+\midrule
+Linear filters with lag correction & With a delay of four frames, the filter must predict. This makes the filter gain $\sum|h_i|$ approximately 2 or more. Thus the planned jerk and snap stay larger than the jerk and snap of the target. \\
+Nonlinear planner with a jerk limit & Against bad targets, the lag was 39\,m to 325\,m and $13\ms$ to $35\ms$. The target turns back when the planner is almost at the target. \\
+Free yaw, mean or larger formations & These methods decrease the torque, but they increase the bank angle, the thrust or the lag. \\
+Weave to decrease rotor-disc drag & For this weave, the motors must supply thrusts from $-34$\,N to $+78$\,N (\cref{sec:speed}). \\
+Wings & The motors stop in dives (\cref{sec:agility}). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The proofs also show a negative result.
+No proof can force a torque of practical size on the quadrotor.
+The detection range is 570\,m and the lens is $120^\circ$.
+With these values, the quadrotor can respond in 7\,s to 30\,s.
+This forces a body rate of only $0.002$ to $0.007$\,rad/s.
+
+Thus, the agility limits come from our tight formation, not from physics.
+A looser formation can use range and field of view as a margin.
+But we did not find a looser formation that gives better results.
+
+Put your money and effort into hardware margin and into a clean planner at a high rate.
+Do not put them into complex path design~\cite{mellinger2011}.
+
+\section{Rules for operation}
+
+Use these rules in operation:
+\begin{enumerate}
+\item Fly below and behind the target, at a distance of 60\,m to 100\,m.
+Get into this position before the target gets to its top speed.
+\item Expect the most difficult condition at mid speed in a dive.
+A target that dives at $30\ms$ to $40\ms$ and starts a turn uses the most margin.
+\item Know the two target movements that no quadrotor can follow.
+The first movement is level flight above the speed limit, which is $57.7\ms$ for the reference
+quadrotor.
+The second movement, in the isotropic model, is a vertical descent faster than $\sqrt{g/c}$.
+This speed is $35\ms$ at $c = 0.008$.
+\item Do not follow from above at a height of more than $D\sin e^*(v)$.
+If you do, the quadrotor goes past the target.
+\item Treat the planner rate as a design value.
+The proved bounds use $120$\,Hz to $480$\,Hz with a delay of four frames.
+A slower rate increases the change between frames.
+\end{enumerate}
+
+\section{Design checklist}
+\label{sec:checklist}
+
+\Cref{tab:checklist} gives the design values for a target at $55\ms$.
+We tested the recommended set of changes as one unit (\cref{tab:package}).
+This set has a thrust-to-weight ratio of 7, $k_n = 0.005$, a yaw coefficient of $0.03$ and
+$30\%$ less inertia.
+
+The parameters have an effect on each other.
+Without less inertia, the certified speed for dives to $10^\circ$ at jerk $5$ decreases to $35.5\ms$.
+The cause is the smaller $k_n$, which also decreases the total thrust in a dive.
+Thus, always test the full set of changes, not each change alone.
+Above approximately $59\ms$ in $10^\circ$ dives, the tilt limit of $85^\circ$ becomes the limit.
+
+\begin{table}[h]
+\centering
+\caption{Recommended set of changes, tested with the proved bounds. Values in m/s.}
+\label{tab:package}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+ & Dives to $5^\circ$ & Dives to $10^\circ$ \\
+\midrule
+Proved limit & $73.9$ & $73.9$ \\
+Certified, jerk to $3$ & $68.2$ & $58.6$ \\
+Certified, jerk to $5$ & $68.1$ & $58.4$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Design checklist for a target at $55\ms$.}
+\label{tab:checklist}
+\small
+\begin{tabularx}{\linewidth}{@{}rlYY@{}}
+\toprule
+ & Item & Design value & Reason \\
+\midrule
+1 & Thrust-to-weight ratio & 7 or more (6 or more with low $k_n$) & Approximately $5\ms$ for each unit \\
+2 & Rotor-plane area & $k_n$ not more than $0.005\,\mathrm{m}^{-1}$ & Limit increases as $k_n^{-1/4}$ \\
+3 & Yaw authority & coefficient $0.03$\,m or more, or tilted motors & Steep dives from $33$ to $52\ms$ \\
+4 & Yaw inertia & not more than $0.014$\,kg\,m$^2$ at 1.5\,kg & Same effect as item 3 \\
+5 & Camera & top, rear; hinge $30^\circ$ to $70^\circ$, or fixed at $50^\circ$ with a $120^\circ$ lens & The camera is then not a limit \\
+6 & Planner & $240$\,Hz, delay of four frames, exact three-tap filter & Certified configuration \\
+7 & Motor reserve & $1$ to $2$\,m/s$^2$ of total thrust at top speed & The top motor gets to its limit first \\
+8 & Parasitic drag & $c$ not less than approximately $0.008\,\mathrm{m}^{-1}$ & Drag keeps the torque in dives \\
+9 & Wings & none & Wings stop the motors in dives \\
+10 & Tilt limit & $85^\circ$ or more & Limit above $59\ms$ in steep dives \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{What to measure before you use these numbers}
+\label{sec:measure}
+
+\Cref{tab:measure} gives the quantities to measure on your quadrotor.
+Each quantity has a large effect on the results.
+
+\begin{table}[h]
+\centering
+\caption{Quantities to measure.}
+\label{tab:measure}
+\small
+\begin{tabularx}{\linewidth}{@{}lYY@{}}
+\toprule
+Quantity & Method & Reason \\
+\midrule
+$k_n$ and $c$ & Wind tunnel or coast-down test at different pitch angles. Measure the drag along and normal to the rotor plane. & These values set the limit to the power $1/4$. \\
+Thrust and airspeed & Thrust stand in a wind tunnel & The model keeps the maximum motor thrust constant. At $50\ms$, the airflow changes it. \\
+Yaw reaction coefficient & Torque stand & This value sets the dive performance. \\
+Inertia & Bifilar pendulum & Same reason \\
+Target jerk and snap & Flight records of the target type & Each certified speed is for one jerk value. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Conclusion}
+
+Hardware margin, not the pursuit method, limits a quadrotor that follows a fast fixed-wing
+aircraft.
+The thrust-to-weight ratio and the rotor-plane area set the top speed.
+The proved speed limit is less than $1\ms$ from steady flight.
+Yaw authority and yaw inertia set the agility in a dive at mid speed.
+The camera position removes the camera as a limit.
+A companion paper gives the formal proofs.
+
+\section*{Reproducibility}
+
+The repository is \url{https://github.com/AbdullahAlmanei/vision-tracking-lean}.
+Use these commands to get the results again:
+\begin{itemize}\raggedright
+\item Proofs: \texttt{lake build}, then \texttt{scripts/axcheck.sh master\_sufficient3 p3\_bracket\_power}.
+\item Parameter tables: \texttt{scripts/paper\_sweeps.py}.
+\item Bounds: \texttt{scripts/gap\_v3.py} and \texttt{scripts/gap\_v3.py kn}.
+\item Weave study: \texttt{scripts/explore/weave.py}.
+\end{itemize}
+
+\begin{thebibliography}{9}\small
+\bibitem{lean4} L.~de~Moura and S.~Ullrich. The Lean 4 theorem prover and programming language. In
+\emph{CADE-28}, 2021.
+\bibitem{mathlib} The mathlib Community. The Lean mathematical library. In \emph{CPP}, 2020.
+\bibitem{hoffmann2007} G.~M.~Hoffmann, H.~Huang, S.~L.~Waslander and C.~J.~Tomlin. Quadrotor helicopter
+flight dynamics and control: theory and experiment. In \emph{AIAA Guidance, Navigation and Control
+Conference}, 2007.
+\bibitem{faessler2018} M.~Faessler, A.~Franchi and D.~Scaramuzza. Differential flatness of quadrotor
+dynamics subject to rotor drag for accurate tracking of high-speed trajectories. \emph{IEEE Robotics and
+Automation Letters}, 3(2), 2018.
+\bibitem{mahony2012} R.~Mahony, V.~Kumar and P.~Corke. Multirotor aerial vehicles: modeling, estimation,
+and control of quadrotor. \emph{IEEE Robotics \& Automation Magazine}, 19(3), 2012.
+\bibitem{mellinger2011} D.~Mellinger and V.~Kumar. Minimum snap trajectory generation and control for
+quadrotors. In \emph{IEEE ICRA}, 2011.
+\end{thebibliography}
+
+\end{document}

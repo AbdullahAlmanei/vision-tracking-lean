@@ -1,0 +1,374 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amsthm}
+\usepackage{newtxtext,newtxmath}
+\usepackage{microtype}
+\usepackage{booktabs,tabularx}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=black!70!blue,citecolor=black!70!blue,urlcolor=black!70!blue]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\setlist{itemsep=2pt,topsep=4pt}
+\newtheorem{theorem}{Theorem}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newcommand{\ip}[2]{\langle #1,#2\rangle}
+\newcommand{\norm}[1]{\lVert #1\rVert}
+\newcommand{\lean}[1]{\texttt{\small #1}}
+\newcommand{\ms}{\,\mathrm{m/s}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\title{\textbf{Certified Pursuit}\\[4pt]
+\large Machine-Checked Necessary and Sufficient Conditions for a Rigid-Body Quadrotor\\
+to Keep a Fast Fixed-Wing Aircraft in View}
+\author{Abdullah Almanei}
+\date{Draft, 2 November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We give a full formal proof of a visual pursuit problem in the Lean~4 proof assistant.
+The pursuer is a quadrotor with a full rigid-body model in discrete time.
+The model has four motors with limits, a mixer, the rotational equation of motion and exact
+rotations.
+It also has limits on tilt, body rate and speed, parasitic drag and a normal force on the rotor
+disc.
+A camera on a hinge with a rate limit must keep a fixed-wing target in view in each frame.
+The target has limits on speed, turn radius, jerk, snap and climb angle.
+
+We prove an explicit sufficient inequality.
+If it is true, a causal method with a delay of four frames keeps each permitted target in view.
+The method uses only the positions of the target.
+We also prove explicit necessary inequalities: a speed limit for each direction, and a power limit
+for the rotor-disc model.
+If a necessary inequality is false, a straight and level target escapes from all quadrotor paths.
+This is true also for a path that the quadrotor plans with full knowledge of the target's future.
+
+For a quadrotor of 1.5\,kg, the sufficient inequality holds to $52\ms$ and the necessary limit is
+$57.7\ms$.
+The power limit is within $0.4\ms$ of exact steady force balance.
+A point mass that weaves can get to the rest of the gap, but a rigid body cannot fly this weave.
+Thus, a better proof must use the rotational limits.
+\end{abstract}
+
+\section{Introduction}
+
+Engineers usually design multirotor pursuit of fast aircraft in simulation.
+They then test the design in flight.
+
+These two steps cannot answer two important questions.
+The first question asks if any method can follow the target with a given airframe.
+The second question asks if a given method follows each permitted target.
+We answer both questions with proofs in a proof assistant~\cite{lean4,mathlib}.
+Our model has sufficient detail to give an answer that an engineer can use.
+
+The paper has six contributions.
+\begin{enumerate}
+\item A rigid-body pursuit model in Lean~4 (\lean{Model.lean}).
+The model has translational and rotational equations of motion in discrete time.
+It has exact attitude updates, four motors with limits, a plus mixer, a target class, a camera
+hinge and causal methods.
+\item A lift theorem (\lean{QuadTraj.ofPlan}).
+A kinematic plan is a sequence of positions and attitude frames.
+If the thrust, torques, tilt, rate and hinge of a plan are in the limits, the plan is a valid
+rigid-body path.
+Thus, a proof of sufficiency becomes a set of inequalities on the plan.
+\item The sufficient theorem \lean{master\_sufficient3}.
+An explicit inequality \lean{MasterIneq3}, which changes with the target speed, makes sure that our
+method keeps the target in view.
+The method uses a filter with a delay of four frames and a position below the target.
+It also uses a frame locked to the side direction and a hinge with limits.
+\item The necessary theorems \lean{master\_necessary3} and \lean{master\_necessary\_power}.
+These theorems are true for all methods, also for methods with full information.
+One target that escapes is sufficient for each proof.
+\item Sharp bounds that move the bounds by $10\ms$ to $30\ms$.
+The first is an exact formula for the change of body rate.
+The others are a sharp bound on the thrust and a time-step term that changes with speed.
+\item An analysis of how close the necessary bound is to the physics.
+\end{enumerate}
+
+\section{Model}
+
+\subsection{Quadrotor}
+
+The time step is $\delta > 0$.
+The state of the quadrotor has six parts.
+These parts are the position $x$, the velocity $v$ and an orthonormal frame $(b_1, b_2, b_3 = b_1 \times b_2)$.
+They are also the body rate $\Omega$, the motor thrusts $f \in [0, f_{\max}]^4$ and the hinge angle $\eta$.
+The translational equation is
+\begin{equation}
+  v_{k+1} = v_k + \delta\Big[\Big(\tfrac{1}{m}\textstyle\sum_i f_i - k_n\norm{v}\ip{v}{b_3}\Big) b_3
+  - g e_3 - c\norm{v} v\Big].
+\end{equation}
+The rotational equation is
+\begin{equation}
+  \Omega_{k+1} = \Omega_k + \delta J^{-1}\big(\tau(f) - \Omega\times J\Omega\big).
+\end{equation}
+An exact rotation through the vector $\delta\,\omega(\Omega)$ updates the frame, with the
+Rodrigues formula.
+The tilt is not more than $\theta_{\max}$, the rate is not more than $\omega_{\max}$ and the speed
+is not more than $v_{\mathrm{env}}$.
+The hinge angle and the hinge rate also have limits.
+
+\subsection{Target and visibility}
+
+The target has a speed in the range $[v_{\min}, v_{\max}]$.
+Its acceleration along the path and normal to the path has limits, with a minimum turn radius $R$.
+Its jerk and snap have limits.
+These limits apply to the second and the third differences of velocity.
+Its climb angle and vertical acceleration also have limits.
+The predicate \lean{StartsSteady} sets the position, velocity and acceleration at the start.
+
+The target is visible in a frame when two conditions are true.
+Its distance is not more than the detection range $D$, and its direction is in the field of view
+of half-angle $\alpha$.
+The predicate \lean{KeepsInView} means that the target is visible in all frames.
+
+\subsection{Methods}
+
+A method, \lean{SteadyStrategy}, gives a quadrotor path for each target path.
+It must be causal.
+The quadrotor state to step $k+1$ and the motor thrusts to step $k$ can depend only on the target
+positions to step $k$.
+Our necessary theorems are true for all quadrotor paths.
+This is a stronger result than a result for one class of methods.
+
+\section{Results}
+
+\begin{theorem}[Sufficiency, \lean{master\_sufficient3}]
+Let \lean{MasterIneq3 P Q C $\delta$ F d} be true, and let the filter $F$ have a delay of four frames.
+Then the method keeps each target that starts in steady flight in view.
+\end{theorem}
+
+The inequality \lean{MasterIneq3} is a finite list of scalar conditions.
+Each condition must be true for each target speed $s$ in the speed range.
+The conditions are as follows:
+\begin{itemize}
+\item the vertical thrust is positive, and the ratio of side thrust to total thrust is less than 1;
+\item consecutive frames are near each other;
+\item the tilt, the body rate and the hinge rate are in their limits;
+\item the motor conditions are true for the roll, pitch and yaw torques, at low and at high thrust;
+\item the camera error plus the planner position error is not more than $\alpha$.
+\end{itemize}
+
+\begin{theorem}[Speed limit for each direction, \lean{master\_necessary3}, $k_n = 0$]
+Let the quadrotor keep each target that starts in steady flight in view.
+Then $v_{\max} \le \mathrm{dirSpeed}(u)$ for each permitted direction $u$.
+Here $\mathrm{dirSpeed}(u)$ is the highest speed along $u$ with the given drag and tilt limit.
+\end{theorem}
+
+\begin{theorem}[Power limit, \lean{master\_necessary\_power}, $k_n > 0$]
+Let the quadrotor keep each target that starts in steady flight in view.
+Then $B\,v_{\max} \le A$ for each line $A - B s$ that is above
+\begin{equation}
+  \min\!\Big(F_{\max}s, \frac{F_{\max}^2}{4k_n s}\Big) - c s^3 + \frac{\delta\, \Gamma(s)^2}{2}
+\end{equation}
+on $[0, v_{\mathrm{env}}]$.
+Here $\Gamma(s)$ is a bound on the acceleration at speed $s$.
+\end{theorem}
+
+\begin{theorem}[Bounds on both sides, \lean{p3\_bracket} and \lean{p3\_bracket\_power}]
+The inequality \lean{MasterIneq3} gives the pursuit result.
+The pursuit result gives \lean{NecIneq3} for $k_n = 0$, or \lean{NecPower} for $k_n > 0$.
+\end{theorem}
+
+\section{Proof structure}
+
+\subsection{Sufficiency}
+
+The proof of sufficiency has eight steps.
+
+The first step is the planner.
+A causal filter uses the past target positions with a delay of four frames.
+Filter constants multiplied by $\delta^j$ and the jerk limit give its errors in velocity,
+acceleration and position.
+A separate bound uses the snap to limit the second difference of the planned acceleration
+(\lean{PlannerSnap}).
+
+The second step is the speed window.
+Each bound for one step uses a speed window $[s_{\mathrm{lo}}(s), s_{\mathrm{hi}}(s)]$.
+This window contains the target speed for three steps (\lean{Under.window}).
+With this window, the inequality can be true over a speed range of $20\ms$ to $55\ms$.
+
+The third step defines the frame.
+The thrust direction is $n = \mathrm{nrm}(\mathrm{thr})$.
+Here $\mathrm{thr}$ is the planned acceleration plus $g e_3$ plus the drag.
+The frame follows the side direction $\ell$ of the target:
+$b_2 = \mathrm{nrm}(-\ell + \ip{\ell}{n} n)$ and $b_1 = b_2 \times n$ (\lean{LateralFrame}).
+This frame exists at all pitch angles if $|\ip{\ell}{n}| < 1$.
+
+The fourth step bounds the body rate.
+The body rate is $\delta^{-1}\psi(a)$, with $a$ the antisymmetric part of the frame step
+(\lean{BodyRate}).
+Two results give sharp bounds.
+
+First, a rotation does not move its own axis.
+Thus, the change of body rate is exactly the change of the rotation vector in the new frame
+(\lean{RateExact}).
+Second, take three consecutive frames $b$, $c$ and $e$.
+The change of $a$ is the second difference of the frame in frame $c$, plus products of consecutive
+steps $\ip{\Delta' c_i}{\Delta' c_j} + \ip{\Delta c_i}{\Delta c_j}$ (\lean{RateSharp}).
+A Parseval identity in the earlier frame bounds these products by tilt multiplied by twist
+(\lean{step\_prod}, \lean{twist\_le}).
+For the reference quadrotor, this result increased the certified speed from $34\ms$ to $64\ms$ for
+dives to $5^\circ$ at jerk $5$.
+
+The fifth step bounds the torque.
+The torque is $J\,\Delta\Omega/\delta + \Omega \times J\Omega$, with a bound on each axis.
+The motor conditions \lean{mix\_lo} and \lean{mix\_hi} then give the mixer condition
+\lean{MixerOK}.
+
+The sixth step bounds the total thrust with the rotor disc.
+The total thrust is $\norm{\mathrm{thr}} + k_n\norm{v}\ip{v}{n}$.
+The lower bound comes from the power of the planned thrust, $\ip{v_P}{\mathrm{thr}}$.
+The upper bound comes from the identity
+\begin{equation}
+  \norm{\mathrm{thr}}^2 = c^2\norm{v}^4 + 2c\norm{v}\ip{v}{a + g e_3} + \norm{a + g e_3}^2 .
+\end{equation}
+In this identity, the turn acceleration has no effect, because it is normal to $v$
+(\lean{thr\_norm\_le\_Nhi}).
+This bound increased the certified speed in the rotor-disc model from $46\ms$ to $52\ms$.
+
+The seventh step is about the hinge and the visibility.
+The hinge uses an arctangent law with limits.
+The camera error is not more than the bank angle plus the hinge error plus the planner error
+(\lean{Hinge}, \lean{UnderTraj.traj\_keeps}).
+
+The eighth step proves causality.
+If two target paths agree to step $k$, the plans, frames, rates and motor thrusts also agree
+(\lean{Under.traj\_causal}).
+
+\subsection{Necessity}
+
+The proofs of necessity use one target that escapes.
+A straight target at $v_{\max}$ escapes from each quadrotor whose displacement along $u$ is not more
+than $k\delta V + K$, with $V < v_{\max}$ (\lean{straightTarget\_escapes\_of\_displacement}).
+
+For the speed limit in each direction, the excess of $\ip{v}{u}$ over $V$ decreases by the factor
+$1 - 2\delta c V$ at each step (\lean{dir\_excess\_step}).
+
+For the power limit, let $y = \ip{v}{b_3}$.
+At each step, the power into the path satisfies
+\begin{equation}
+  F y - k_n\norm{v} y^2 \le \min\!\Big(F_{\max}\norm v, \frac{F_{\max}^2}{4k_n\norm v}\Big).
+\end{equation}
+The mechanical energy $\tfrac12\norm{v}^2 + g z$ thus changes by not more than
+$\delta(\mathrm{availPower} - c\norm v^3) + \delta^2 \Gamma(\norm v)^2/2$ at each step.
+A quadrotor that keeps a level target in view has a height change of not more than $2D$.
+Thus, the line condition gives a bound on its displacement along $u$ (\lean{PowerWall}).
+
+\section{How close the bounds are}
+
+\Cref{tab:tight} gives the two bounds for three configurations.
+
+\begin{table}[h]
+\centering
+\caption{Necessary limit and certified speed at jerk $5$, in m/s.}
+\label{tab:tight}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Configuration & Necessary & Sufficient \\
+\midrule
+Isotropic drag, dives to $5^\circ$ & $84.5$ & $69.5$ \\
+$k_n = 0.01$, dives to $5^\circ$ & $57.7$ & $52.1$ \\
+$k_n = 0.01$, dives to $10^\circ$, yaw coefficient $0.03$ & $57.7$ & $52.1$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The power limit and force balance}
+
+When the time step goes to zero, the energy bound gives $57.36\ms$ at $k_n = 0.01$.
+Exact steady, straight and level flight gives $57.3\ms$.
+We also did a numerical search of a Lagrangian dual.
+This dual adds multipliers for the mean force balance to the energy term.
+The best multiplier was zero.
+
+At $k_n = 0.02$, the bound is $48.2\ms$ and steady flight gives $47.0\ms$.
+A point mass can get to this bound with a weave.
+It applies more thrust than necessary and turns the extra thrust to the left and to the right in
+turn.
+The side force does no work, but it tilts the rotor disc away from the airflow.
+The point mass gets to $47.8\ms$.
+Thus, no bound that uses only translational limits can be lower than approximately $48.2\ms$.
+
+In the full rigid-body model, this weave is not possible.
+For the weave, the motors must supply thrusts from $-34$\,N to $+78$\,N, and the limit is 22\,N.
+In our search, each weave within the limits was slower than steady flight.
+Thus, the rest of the gap comes from the rotational limits.
+A better proof must connect three things: the flight direction of the quadrotor, the roll acceleration and
+the motor margin.
+
+\subsection{The sufficient side}
+
+The rest of the gap on the sufficient side has two causes.
+The first cause is the design of the method.
+The method copies the target path exactly, also at short peaks of thrust at top speed.
+The second cause is real margin.
+The top motor must keep a reserve for attitude control.
+Some small terms in the bounds also add to the gap.
+
+\section{Proof method}
+
+The development has approximately 10\,000 lines in 43 files and 522 theorems.
+A full build takes approximately five minutes.
+A script, \lean{scripts/axcheck.sh}, confirms in continuous integration that each main theorem uses
+only the standard axioms.
+A blueprint web site links each result to its Lean declarations.
+
+Each inequality \lean{MasterIneq} is a structure of scalar conditions.
+A Python file copies each term of this structure (\lean{budget\_v3.py}).
+Thus, the numbers and the proofs stay in agreement.
+We tested each improvement of a proof with numbers first.
+When an improvement did not give a better number, we did not prove it.
+
+We found four useful methods for the proofs:
+\begin{enumerate}
+\item Give names to terms before you use \lean{linarith}.
+This tactic treats products with different syntax as different atoms.
+\item Change $k+1+1$ to $k+2$ before you expand plan definitions.
+This prevents time-outs when Lean expands definitions.
+\item Use explicit chains of \lean{calc} and \lean{mul\_le\_mul} instead of \lean{nlinarith} when
+the context is large.
+\item Keep abbreviations from \lean{set} in agreement with hypotheses that you add later.
+\end{enumerate}
+
+We added the rotor-disc force to the model after the first proofs.
+This change had an effect on each user of the translational equation.
+The older results now have the explicit hypothesis \lean{Q.normalDrag = 0}.
+Thus, their statements did not change without notice.
+
+\section{Limits and future work}
+
+The model does not include the change of motor thrust with airspeed.
+It also does not include aerodynamic moments, wind, the ground and sensor noise.
+The targets start in steady flight.
+A necessary condition for turns is not useful at our ranges.
+A quadrotor near the centre of the turn can see a target that flies in a circle.
+
+Two problems are open.
+The first problem is a rotational proof for the weave gap.
+The second problem is a looser formation that uses range and field of view as margin for agility.
+Our results about torque show that physics forces almost no torque in this case.
+
+\section*{Reproducibility}
+
+The repository is \url{https://github.com/AbdullahAlmanei/vision-tracking-lean}.
+Use these commands to get the results again:
+\begin{itemize}\raggedright
+\item Proofs: \texttt{lake build}, then \texttt{scripts/axcheck.sh master\_sufficient3 p3\_bracket p3\_bracket\_power}.
+\item Bounds: \texttt{scripts/gap\_v3.py} and \texttt{scripts/gap\_v3.py kn}.
+\item Weave study: \texttt{scripts/explore/weave.py}. Power dual: \texttt{scripts/explore/power\_dual.py}.
+\end{itemize}
+
+\begin{thebibliography}{9}\small
+\bibitem{lean4} L.~de~Moura and S.~Ullrich. The Lean 4 theorem prover and programming language. In
+\emph{CADE-28}, 2021.
+\bibitem{mathlib} The mathlib Community. The Lean mathematical library. In \emph{CPP}, 2020.
+\end{thebibliography}
+
+\end{document}
