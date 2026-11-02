@@ -75,7 +75,10 @@ def at_speed(P, Q, C, dt, F, d, s):
     kn = Q.get('kn', 0.0); sLp = sLo - eV; sHp = sHi + eV
     VTlo = c * sLp ** 3 - sHp * (A + eD) - g * (sHi * sg + eV)
     Clo = Tlo + kn * min(sLp * VTlo / Thi, sHp * VTlo / Tlo)
-    Chi = Thi + kn * sHp ** 2
+    Pv = sHi * P['aTan'] + eV * (A + eD) + sHi * eD + g * (sHi * sg + eV)     # Budget3.Pv
+    Rr2 = (A + eD) ** 2 + 2 * g * (P['aVert'] + eD) + g ** 2                    # Budget3.Rr2
+    Nhi = math.sqrt(c * c * sHp ** 4 + 2 * c * sHp * Pv + Rr2)                  # Budget3.Nhi
+    Chi = min(Thi, Nhi) + kn * sHp ** 2
     ok.update(tilt=math.atan(Hhi / Zlo) <= Q['tiltMax'], rate=Om <= Q['rateMax'],
               mix_lo=need <= Q['mass'] * Clo / 4, mix_hi=Q['mass'] * Chi / 4 + need <= Q['fMotor'],
               miss_le=miss <= math.pi / 2, see=camOff + mu <= C['halfFov'], hinge=hstep <= dt * C['hingeRate'])

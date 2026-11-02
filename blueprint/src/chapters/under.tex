@@ -189,7 +189,7 @@ Each product is bounded by tilt$\times$twist plus third-order terms.
 \lean{VisionTracking.QuadParams.availPower, VisionTracking.power_le_availPower,
   VisionTracking.QuadTraj.energy_step, VisionTracking.no_traj_keeps_of_power,
   VisionTracking.NecPower, VisionTracking.master_necessary_power,
-  VisionTracking.p3_bracket_power}
+  VisionTracking.p3_bracket_power, VisionTracking.Under.thr_norm_le_Nhi}
 \leanok
 \uses{thm:master3}
 With the normal force $-k_n\norm v\inner v{b_3}b_3$ and $k_n>0$, the power into the flight
@@ -215,6 +215,7 @@ $22$\,cm arm, and for jerk at most $3$ with the base quadrotor.
 The torque part of \texttt{MasterIneq3} drives the gap. It reflects the design choice of
 copying the target's acceleration exactly; it is not a physical limit.
 With the rotor-disc normal force at $k_n=0.01$, the power wall is about $58$\,m/s. The
-sufficient side reaches about $46$\,m/s at jerk $5$ on both $5^\circ$ and $10^\circ$ dives
-(tuned quadrotor), and is bound by top-motor saturation.
+sufficient side reaches about $52$\,m/s at jerk $5$ on both $5^\circ$ and $10^\circ$ dives
+(tuned quadrotor; \texttt{Under.thr\_norm\_le\_Nhi} bounds $\norm{\mathrm{thr}}$ sharply).
+It is bound by top-motor saturation.
 \end{remark}

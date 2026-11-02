@@ -111,7 +111,19 @@ noncomputable def VTlo : ℝ :=
 noncomputable def Clo : ℝ :=
   Tlo P Q δ F s + Q.normalDrag * min (sLp P δ F s * VTlo P Q δ F s / Thi P Q δ F s)
     (sHp P δ F s * VTlo P Q δ F s / Tlo P Q δ F s)
-noncomputable def Chi : ℝ := Thi P Q δ F s + Q.normalDrag * sHp P δ F s ^ 2
+/-- Upper bound on `⟪vP, a + g e₃⟫` (the turn acceleration is normal to the velocity). -/
+noncomputable def Pv : ℝ :=
+  sHi P δ s * P.aTan + εV P δ F * (A P δ s + εD P δ F) + sHi P δ s * εD P δ F
+    + Q.g * (sHi P δ s * Real.sin P.climbMax + εV P δ F)
+/-- Upper bound on `‖a + g e₃‖²`. -/
+noncomputable def Rr2 : ℝ :=
+  (A P δ s + εD P δ F) ^ 2 + 2 * Q.g * (P.aVert + εD P δ F) + Q.g ^ 2
+/-- Sharp upper bound on `‖thr‖`, from
+`‖thr‖² = c²‖v‖⁴ + 2c‖v‖⟪v, a + g e₃⟫ + ‖a + g e₃‖²`. -/
+noncomputable def Nhi : ℝ :=
+  √(Q.drag ^ 2 * sHp P δ F s ^ 4 + 2 * Q.drag * sHp P δ F s * Pv P Q δ F s + Rr2 P Q δ F s)
+noncomputable def Chi : ℝ :=
+  min (Thi P Q δ F s) (Nhi P Q δ F s) + Q.normalDrag * sHp P δ F s ^ 2
 noncomputable def hingeStep : ℝ := π / 2 * (db P Q δ F s + dn P Q δ F s) / M P Q δ F s
 
 end Budget3

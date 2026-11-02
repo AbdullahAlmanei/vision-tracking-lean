@@ -469,6 +469,95 @@ theorem vP_thr_ge : VTlo P Q δ F ‖T.v k‖ ≤ ⟪vP T a₀ F k, thr T a₀ Q
   have := mul_le_mul_of_nonneg_left a2' Q.g_pos.le
   nlinarith
 
+/-- **Sharp thrust bound.** The turn acceleration is normal to the velocity, so it does not
+add linearly to the drag. -/
+theorem thr_norm_le_Nhi : ‖thr T a₀ Q F k‖ ≤ Nhi P Q δ F ‖T.v k‖ := by
+  obtain ⟨hs, w0, -, -⟩ := windows T h k
+  set s := ‖T.v k‖
+  have hδ := h.δ_pos
+  have hc := Q.drag_pos
+  have hg := Q.g_pos
+  have eV0 := εV_nonneg T a₀ h hS
+  have eD0 := εD_nonneg T a₀ h hS
+  have hsg := sin_climb_nonneg P
+  have hA0 : 0 ≤ A P δ s := by
+    unfold A; have := P.aTan_nonneg; have := P.turnRadius_pos; positivity
+  have hsHi : 0 ≤ sHi P δ s := (norm_nonneg _).trans w0.2
+  set pa := F.planAcc T a₀ k
+  set vp := vP T a₀ F k
+  set v := T.v k
+  set aT := δ⁻¹ • (T.v (k + 1) - T.v k)
+  set V := ‖vp‖
+  have e1 : ‖pa - aT‖ ≤ εD P δ F := acc_err T a₀ h hS k
+  have e2 : ‖vp - v‖ ≤ εV P δ F := vP_err T a₀ h hS k
+  have hpa : ‖pa‖ ≤ A P δ s + εD P δ F := planAcc_le T a₀ h hS w0
+  have hV : V ≤ sHp P δ F s := vP_le T a₀ h hS w0
+  have hv : ‖v‖ ≤ sHi P δ s := w0.2
+  -- along-track acceleration
+  have tang : ⟪v, aT⟫ ≤ P.aTan * sHi P δ s := by
+    have ht := (abs_le.1 (T.tangential k)).2
+    rw [real_inner_comm, real_inner_smul_left]
+    have := mul_le_mul_of_nonneg_left ht (inv_pos.2 hδ).le
+    rw [show δ⁻¹ * (δ * P.aTan * ‖T.v k‖) = P.aTan * ‖T.v k‖ by field_simp] at this
+    have := mul_le_mul_of_nonneg_left hv P.aTan_nonneg
+    linarith
+  have i1 : ⟪vp, pa⟫ ≤ εV P δ F * (A P δ s + εD P δ F) + sHi P δ s * εD P δ F
+      + P.aTan * sHi P δ s := by
+    have sp : ⟪vp, pa⟫ = ⟪vp - v, pa⟫ + ⟪v, pa - aT⟫ + ⟪v, aT⟫ := by
+      simp only [inner_sub_left, inner_sub_right]; ring
+    have a1 : ⟪vp - v, pa⟫ ≤ εV P δ F * (A P δ s + εD P δ F) :=
+      (real_inner_le_norm _ _).trans (mul_le_mul e2 hpa (norm_nonneg _) eV0)
+    have a2 : ⟪v, pa - aT⟫ ≤ sHi P δ s * εD P δ F :=
+      (real_inner_le_norm _ _).trans (mul_le_mul hv e1 (norm_nonneg _) hsHi)
+    linarith
+  have i2 : ⟪vp, up⟫ ≤ sHi P δ s * Real.sin P.climbMax + εV P δ F := by
+    have hcl := (abs_le.1 (T.climb_le k)).2
+    have b1 : ⟪vp - v, up⟫ ≤ εV P δ F := by
+      have := real_inner_le_norm (vp - v) up; rw [norm_up', mul_one] at this
+      exact this.trans e2
+    rw [inner_sub_left] at b1
+    have := mul_le_mul_of_nonneg_right hv hsg
+    linarith
+  have hr : ⟪pa + Q.g • up, vp⟫ ≤ Pv P Q δ F s := by
+    rw [inner_add_left, real_inner_smul_left, real_inner_comm, real_inner_comm vp up]
+    unfold Pv
+    have := mul_le_mul_of_nonneg_left i2 hg.le
+    linarith
+  have hPv : 0 ≤ Pv P Q δ F s := by
+    unfold Pv; have := P.aTan_nonneg; positivity
+  have hup : ⟪pa, up⟫ ≤ P.aVert + εD P δ F := by
+    have := (abs_le.1 (targetAcc_up_abs_le T hδ k)).2
+    have b1 : ⟪pa - aT, up⟫ ≤ εD P δ F := by
+      have := real_inner_le_norm (pa - aT) up; rw [norm_up', mul_one] at this
+      exact this.trans e1
+    rw [inner_sub_left] at b1
+    linarith
+  have huu : ⟪up, up⟫ = 1 := by rw [real_inner_self_eq_norm_sq, norm_up']; norm_num
+  have hR : ‖pa + Q.g • up‖ ^ 2 ≤ Rr2 P Q δ F s := by
+    rw [norm_add_sq_real, norm_smul, norm_up', mul_one, Real.norm_of_nonneg hg.le,
+      real_inner_smul_right]
+    unfold Rr2
+    have := pow_le_pow_left₀ (norm_nonneg _) hpa 2
+    have := mul_le_mul_of_nonneg_left hup (by positivity : (0 : ℝ) ≤ 2 * Q.g)
+    nlinarith
+  have hthr : thr T a₀ Q F k = (pa + Q.g • up) + (Q.drag * V) • vp := rfl
+  have hsq : ‖thr T a₀ Q F k‖ ^ 2
+      = ‖pa + Q.g • up‖ ^ 2 + 2 * (Q.drag * V) * ⟪pa + Q.g • up, vp⟫ + Q.drag ^ 2 * V ^ 4 := by
+    rw [hthr, norm_add_sq_real, norm_smul, real_inner_smul_right,
+      Real.norm_of_nonneg (mul_nonneg hc.le (norm_nonneg _))]
+    ring
+  have hV0 : 0 ≤ V := norm_nonneg _
+  have t1 : Q.drag * V * ⟪pa + Q.g • up, vp⟫ ≤ Q.drag * sHp P δ F s * Pv P Q δ F s := by
+    have := mul_le_mul_of_nonneg_left hr (mul_nonneg hc.le hV0)
+    have := mul_le_mul_of_nonneg_right (mul_le_mul_of_nonneg_left hV hc.le) hPv
+    linarith
+  have t2 : V ^ 4 ≤ sHp P δ F s ^ 4 := pow_le_pow_left₀ hV0 hV 4
+  unfold Nhi
+  rw [← Real.sqrt_sq (norm_nonneg (thr T a₀ Q F k))]
+  apply Real.sqrt_le_sqrt
+  rw [hsq]
+  nlinarith [mul_le_mul_of_nonneg_left t2 (sq_nonneg Q.drag)]
+
 /-- **Collective bounds** with the rotor-disc normal force. -/
 theorem kp_collective : Clo P Q δ F ‖T.v k‖ ≤ (kp T a₀ h hS).collective k ∧
     (kp T a₀ h hS).collective k ≤ Chi P Q δ F ‖T.v k‖ := by
@@ -497,6 +586,8 @@ theorem kp_collective : Clo P Q δ F ‖T.v k‖ ≤ (kp T a₀ h hS).collective
     have := mul_le_mul_of_nonneg_left key hkn
     nlinarith
   · unfold Chi
+    have hT2 : ‖thr T a₀ Q F k‖ ≤ min (Thi P Q δ F s) (Nhi P Q δ F s) :=
+      le_min hT2 (thr_norm_le_Nhi T a₀ h hS k)
     have h1 : ⟪vP T a₀ F k, nP T a₀ Q F k⟫ ≤ ‖vP T a₀ F k‖ := by
       have := real_inner_le_norm (vP T a₀ F k) (nP T a₀ Q F k)
       rwa [nP_unit T a₀ h hS w0 hs, mul_one] at this
